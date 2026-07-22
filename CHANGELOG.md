@@ -2,6 +2,45 @@
 
 All notable changes to Sentinelux will be documented in this file.
 
+## [0.0.5] - Unreleased
+
+### Documentation
+
+- Added Italian and English GitHub documentation with a bilingual landing README.
+- Added the public Sentinelux product dossier and matt88.it handoff under `docs/public/`.
+
+### Changed
+
+- Made the tray RAM percentage and used/total values derive from the same `MemAvailable` accounting model.
+- Added currently available memory to the flat tray row.
+- Kept the raw psutil `used` value in metrics while exposing explicit available and unavailable byte counts.
+
+## [0.0.4] - Unreleased
+
+### Added
+
+- Read-only fan RPM, PWM percentage, and control-mode discovery through Linux hwmon.
+- Flat tray rows for every fan exposed by the kernel.
+- A Ventole preferences page with Automatico, Silenzioso, Bilanciato, Prestazioni, and Massimo presets.
+- Session-scoped privileged PWM writes through a narrowly validated, root-owned `pkexec` helper.
+- Tachometer feedback checks after manual preset changes and automatic restoration of the original fan state on exit.
+
+### Safety
+
+- Manual control is offered only when RPM, PWM, and readable control mode are all exposed.
+- The lowest manual preset is 55%; Sentinelux never offers a fan-off preset.
+- No fan preset is applied automatically at login or persisted in the JSON configuration.
+
+## [0.0.3] - Unreleased
+
+### Added
+
+- Preventive thermal protection with configurable hibernation or suspension.
+- Configurable action temperature, persistence time, and cancellation hysteresis.
+- Read-only discovery and display of Linux thermal-zone critical trip points.
+- systemd-logind capability reporting before enabling a sleep action.
+- Sustained-temperature controller that cancels the pending action after recovery.
+
 ## [0.0.2] - Unreleased
 
 ### Changed

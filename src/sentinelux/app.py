@@ -9,6 +9,7 @@ from typing import Any
 from . import __version__
 from .alerts import AlertEvent, AlertKind, ThermalAlertController, ThermalState
 from .config import AppConfig
+from .fans import FanControlError, FanManager, format_fan_channel
 from .metrics import (
     SystemMetrics,
     TemperatureReading,
@@ -16,10 +17,17 @@ from .metrics import (
     human_bytes,
 )
 from .presentation import (
+    format_memory_summary,
     format_percentage,
     format_temperature,
     sensor_display_name,
     thermal_state_presentation,
+)
+from .protection import (
+    ProtectionEvent,
+    ProtectionEventKind,
+    ThermalProtectionController,
+    request_sleep_action,
 )
 from .settings import SettingsWindow
 
@@ -67,6 +75,8 @@ class SentineluxApplication:
         self.running = False
 
         self.alerts = self._new_alert_controller(config)
+        self.protection = self._new_protection_controller(config)
+        self.fans = FanManager()
 
         self.indicator = self.AppIndicator.Indicator.new(
             "sentinelux",
@@ -95,9 +105,25 @@ class SentineluxApplication:
             reminder_seconds=config.reminder_interval_seconds,
         )
 
+    def _new_protection_controller(
+        self,
+        config: AppConfig,
+    ) -> ThermalProtectionController:
+        return ThermalProtectionController(
+            enabled=config.thermal_protection_enabled,
+            threshold_c=config.thermal_protection_temperature_c,
+            persistence_seconds=config.thermal_protection_persistence_seconds,
+            recovery_hysteresis_c=(
+                config.thermal_protection_recovery_hysteresis_c
+            ),
+            action=config.thermal_protection_action,
+        )
+
     def _build_menu(self) -> None:
         self.sensor_signature: tuple[tuple[str, str], ...] | None = None
         self.sensor_rows: list[Any] = []
+        self.fan_signature: tuple[str, ...] | None = None
+        self.fan_rows: list[Any] = []
 
         self.header_item = self._info_item(
             f"🛡 Sentinelux v{__version__} · inizializzazione"
@@ -114,6 +140,8 @@ class SentineluxApplication:
         self.menu.append(self.Gtk.SeparatorMenuItem())
         self.sensor_anchor = self.Gtk.SeparatorMenuItem()
         self.menu.append(self.sensor_anchor)
+        self.fan_anchor = self.Gtk.SeparatorMenuItem()
+        self.menu.append(self.fan_anchor)
 
         self.pause_item = self.Gtk.CheckMenuItem(label="🔔 Sospendi avvisi")
         self.pause_item.connect("toggled", self._on_pause_toggled)
@@ -130,10 +158,11 @@ class SentineluxApplication:
         self.menu.append(self.Gtk.SeparatorMenuItem())
 
         quit_item = self.Gtk.MenuItem(label="⏻ Esci")
-        quit_item.connect("activate", lambda *_: self.Gtk.main_quit())
+        quit_item.connect("activate", self._quit)
         self.menu.append(quit_item)
 
         self._update_sensor_rows(())
+        self._update_fan_rows(())
         self._sync_notification_controls()
 
     def _info_item(self, label: str) -> Any:
@@ -226,6 +255,13 @@ class SentineluxApplication:
         if event is not None:
             self._notify(event, metrics)
 
+        protection_event = self.protection.evaluate(
+            metrics.cpu_temperature_c,
+            time.monotonic(),
+        )
+        if protection_event is not None:
+            self._handle_protection_event(protection_event, metrics)
+
         state_label, _state_colour = thermal_state_presentation(self.alerts.state)
         state_icon = {
             ThermalState.NORMAL: "🟢",
@@ -240,9 +276,13 @@ class SentineluxApplication:
             f"⚙ CPU · {format_percentage(metrics.cpu_percent)}"
         )
         self.memory_item.set_label(
-            f"▣ RAM · {format_percentage(metrics.memory_percent)} · "
-            f"{human_bytes(metrics.memory_used_bytes)} / "
-            f"{human_bytes(metrics.memory_total_bytes)}"
+            "▣ RAM · "
+            + format_memory_summary(
+                metrics.memory_percent,
+                metrics.memory_unavailable_bytes,
+                metrics.memory_total_bytes,
+                metrics.memory_available_bytes,
+            )
         )
         self.swap_item.set_label(
             f"▤ Swap · {format_percentage(metrics.swap_percent)} · "
@@ -251,11 +291,86 @@ class SentineluxApplication:
         )
 
         self._update_sensor_rows(metrics.temperature_readings)
+        self._update_fan_rows(self.fans.refresh())
         self._set_indicator_label(metrics)
         self._set_indicator_icon()
 
         LOGGER.debug("metrics=%s", metrics.to_dict())
         return True
+
+
+    def _handle_protection_event(
+        self,
+        event: ProtectionEvent,
+        metrics: SystemMetrics,
+    ) -> None:
+        action_name = (
+            "ibernazione" if event.action == "hibernate" else "sospensione"
+        )
+        temperature = f"{event.temperature_c:.1f} °C"
+        sensor = metrics.temperature_label or "sensore CPU"
+
+        if event.kind is ProtectionEventKind.ARMED:
+            self._show_protection_notification(
+                "Sentinelux: protezione termica armata",
+                (
+                    f"{sensor} è a {temperature}. {action_name.capitalize()} tra "
+                    f"{event.persistence_seconds:.0f} secondi se la temperatura "
+                    "resta oltre soglia."
+                ),
+                critical=True,
+            )
+            return
+
+        if event.kind is ProtectionEventKind.CANCELLED:
+            self._show_protection_notification(
+                "Sentinelux: azione termica annullata",
+                f"La temperatura è rientrata a {temperature}.",
+                critical=False,
+            )
+            return
+
+        self._show_protection_notification(
+            f"Sentinelux: avvio {action_name}",
+            (
+                f"Temperatura persistente a {temperature}. "
+                "Richiesta di protezione inviata a systemd-logind."
+            ),
+            critical=True,
+        )
+        try:
+            request_sleep_action(event.action)
+        except (RuntimeError, ValueError) as exc:
+            LOGGER.exception("thermal protection action failed")
+            self._show_protection_notification(
+                "Sentinelux: protezione termica non eseguita",
+                str(exc),
+                critical=True,
+            )
+
+    def _show_protection_notification(
+        self,
+        title: str,
+        body: str,
+        *,
+        critical: bool,
+    ) -> None:
+        if not self.runtime_notifications_allowed:
+            return
+        notification = self.Notify.Notification.new(
+            title,
+            body,
+            "dialog-warning" if critical else "utilities-system-monitor",
+        )
+        notification.set_urgency(
+            self.Notify.Urgency.CRITICAL
+            if critical
+            else self.Notify.Urgency.LOW
+        )
+        try:
+            notification.show()
+        except Exception:
+            LOGGER.exception("thermal protection notification failed")
 
     def _update_sensor_rows(
         self,
@@ -288,6 +403,31 @@ class SentineluxApplication:
             self.sensor_rows[0].set_label("🌡 Temperatura CPU · non disponibile")
             self.sensor_rows[0].set_tooltip_text(None)
 
+    def _update_fan_rows(self, channels: tuple[Any, ...]) -> None:
+        signature = tuple(channel.identifier for channel in channels)
+        if signature != self.fan_signature:
+            for item in self.fan_rows:
+                self.menu.remove(item)
+            self.fan_rows.clear()
+
+            anchor_index = self.menu.get_children().index(self.fan_anchor)
+            row_count = len(channels) if channels else 1
+            for offset in range(row_count):
+                item = self._info_item("🌀 Ventole · non esposte")
+                self.menu.insert(item, anchor_index + offset)
+                self.fan_rows.append(item)
+
+            self.fan_signature = signature
+            self.menu.show_all()
+
+        if channels:
+            for item, channel in zip(self.fan_rows, channels):
+                item.set_label(f"🌀 {format_fan_channel(channel)}")
+                item.set_tooltip_text(f"Controller: {channel.chip}")
+        else:
+            self.fan_rows[0].set_label("🌀 Ventole · non esposte")
+            self.fan_rows[0].set_tooltip_text(None)
+
     def _on_pause_toggled(self, item: Any) -> None:
         self.notifications_paused = bool(item.get_active())
         item.set_label(
@@ -303,6 +443,7 @@ class SentineluxApplication:
                 self.Gtk,
                 self.config,
                 self._apply_config,
+                self.fans,
             )
         else:
             self.settings_window.load_config(self.config)
@@ -311,6 +452,8 @@ class SentineluxApplication:
     def _apply_config(self, config: AppConfig) -> None:
         self.config = config
         self.alerts = self._new_alert_controller(config)
+        self.protection = self._new_protection_controller(config)
+        self.fans = FanManager()
         self._sync_notification_controls()
         if self.running:
             self._schedule_refresh()
@@ -323,6 +466,13 @@ class SentineluxApplication:
         if not enabled and self.pause_item.get_active():
             self.pause_item.set_active(False)
 
+    def _quit(self, *_: Any) -> None:
+        try:
+            self.fans.restore_original()
+        except FanControlError:
+            LOGGER.exception("cannot restore original fan state during exit")
+        self.Gtk.main_quit()
+
     def _schedule_refresh(self) -> None:
         if self.timeout_source_id is not None:
             self.GLib.source_remove(self.timeout_source_id)
@@ -331,10 +481,16 @@ class SentineluxApplication:
 
     def run(self) -> int:
         self.running = True
-        self._refresh()
-        self._schedule_refresh()
-        self.Gtk.main()
-        self.running = False
-        if self.runtime_notifications_allowed:
-            self.Notify.uninit()
+        try:
+            self._refresh()
+            self._schedule_refresh()
+            self.Gtk.main()
+        finally:
+            self.running = False
+            try:
+                self.fans.restore_original()
+            except FanControlError:
+                LOGGER.exception("cannot restore original fan state")
+            if self.runtime_notifications_allowed:
+                self.Notify.uninit()
         return 0

@@ -10,4 +10,5 @@ sudo apt install -y \
   gir1.2-ayatanaappindicator3-0.1 \
   gir1.2-notify-0.7 \
   libnotify-bin \
+  pkexec \
   xdg-utils

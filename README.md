@@ -1,75 +1,39 @@
 # Sentinelux
 
-Sentinelux is a tray-first Linux hardware monitor focused on lightweight, local system health visibility and thermal alerts.
+[Italiano](README.it.md) · [English](README.en.md)
 
-The first personal build provides:
+**Sentinelux** is an open-source Linux desktop monitor that keeps CPU load, coherent RAM pressure, swap, CPU temperatures and available fan telemetry visible from the system tray. It also provides configurable thermal alerts, optional preventive sleep actions and per-user autostart.
 
-- total CPU usage;
-- RAM and swap usage;
-- CPU package and per-core temperature detection when exposed by the hardware;
-- thermal policy based on the hottest detected CPU sensor;
-- warning, critical, reminder, and recovery desktop notifications;
-- independent enable/disable controls for each alert type;
-- a compact single-level GTK tray menu with icon-prefixed values and every detected CPU sensor visible;
-- a GTK preferences page for thresholds, refresh interval, notifications, and automatic startup;
-- JSON configuration under `~/.config/sentinelux/config.json`;
-- no root requirement, telemetry, or network activity.
+**Sentinelux** è un monitor desktop open source per Linux che rende visibili dalla tray il carico CPU, la pressione RAM calcolata in modo coerente, lo swap, le temperature CPU e l’eventuale telemetria delle ventole. Include inoltre alert termici configurabili, azioni preventive opzionali e avvio automatico per utente.
 
-## Supported systems
+> Current status / Stato attuale: **0.0.5 · pre-alpha · unreleased / non rilasciata**
 
-The bootstrap build targets Debian-family desktop distributions with GTK 3 and an AppIndicator-compatible tray implementation.
+- Detailed documentation in Italian: [README.it.md](README.it.md)
+- Detailed documentation in English: [README.en.md](README.en.md)
+- Public product dossier for matt88.it: [docs/public/sentinelux-matt88-dossier.md](docs/public/sentinelux-matt88-dossier.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- License: [GPL-3.0-or-later](LICENSE)
 
-## Quick start
+## Quick start / Avvio rapido
 
 ```bash
 ./scripts/install-deps-debian.sh
 ./scripts/run-dev.sh --debug
 ```
 
-Open **Preferenze…** from the tray menu to configure:
-
-- refresh interval;
-- warning and critical thresholds;
-- recovery hysteresis;
-- reminder interval;
-- notification master switch;
-- warning, critical, reminder, and recovery alert types;
-- automatic startup at desktop login.
-
-Install for the current user:
+Install for the current user / Installa per l’utente corrente:
 
 ```bash
 ./scripts/install-user.sh
 ~/.local/bin/sentinelux --debug
 ```
 
-Enable autostart from **Preferenze… → Avvio**, or from the terminal:
-
-```bash
-./scripts/enable-autostart.sh
-```
-
-Print one metrics snapshot without starting the GUI:
+Print one JSON metrics snapshot / Stampa uno snapshot JSON:
 
 ```bash
 ./scripts/run-dev.sh --once
 ```
 
-The JSON snapshot includes the hottest CPU temperature, the average of the selected sensor group, and the complete package/core reading list.
+Sentinelux currently targets Debian-family desktop systems with Python 3.10+, GTK 3 and an AppIndicator-compatible tray. Hardware readings and privileged actions depend on what the kernel, firmware and desktop policy expose.
 
-## Default thermal policy
-
-- warning: 85 °C;
-- critical: 95 °C;
-- recovery hysteresis: 5 °C;
-- reminder interval while hot: 5 minutes.
-
-Sentinelux applies these thresholds to the hottest selected package/core sensor. Values can be changed from the GTK preferences page, directly in the JSON configuration, or temporarily overridden from the command line.
-
-## Project status
-
-This is an early personal-use bootstrap. Storage, battery, power, network, graphs, fan controls, Debian packaging, and the matt88.it product-page integration are deferred.
-
-## License
-
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+Sentinelux è attualmente rivolto a sistemi desktop della famiglia Debian con Python 3.10+, GTK 3 e una tray compatibile con AppIndicator. Letture hardware e azioni privilegiate dipendono da ciò che kernel, firmware e policy desktop rendono disponibile.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from .alerts import ThermalState
+from .metrics import human_bytes
 
 
 _STATE_PRESENTATION = {
@@ -18,6 +19,21 @@ def format_percentage(value: float) -> str:
     """Format a percentage with one decimal place."""
 
     return f"{value:.1f}%"
+
+
+def format_memory_summary(
+    percent: float,
+    unavailable_bytes: int,
+    total_bytes: int,
+    available_bytes: int,
+) -> str:
+    """Format coherent Linux memory pressure and availability values."""
+
+    return (
+        f"{format_percentage(percent)} · "
+        f"{human_bytes(unavailable_bytes)} / {human_bytes(total_bytes)} · "
+        f"disp. {human_bytes(available_bytes)}"
+    )
 
 
 def format_temperature(value_c: float | None) -> str:

@@ -23,6 +23,11 @@ class AppConfig:
     alert_critical_enabled: bool = True
     alert_reminder_enabled: bool = True
     alert_recovery_enabled: bool = True
+    thermal_protection_enabled: bool = False
+    thermal_protection_action: str = "hibernate"
+    thermal_protection_temperature_c: float = 97.0
+    thermal_protection_persistence_seconds: float = 20.0
+    thermal_protection_recovery_hysteresis_c: float = 3.0
 
     def validate(self) -> None:
         if self.refresh_interval_seconds < 0.5:
@@ -37,6 +42,25 @@ class AppConfig:
             raise ValueError("recovery_hysteresis_c cannot be negative")
         if self.reminder_interval_seconds < 30:
             raise ValueError("reminder_interval_seconds must be at least 30")
+        if self.thermal_protection_action not in {"hibernate", "suspend"}:
+            raise ValueError(
+                "thermal_protection_action must be hibernate or suspend"
+            )
+        if (
+            self.thermal_protection_enabled
+            and self.thermal_protection_temperature_c < self.critical_temperature_c
+        ):
+            raise ValueError(
+                "thermal_protection_temperature_c must be at least the critical alert threshold"
+            )
+        if self.thermal_protection_persistence_seconds < 5:
+            raise ValueError(
+                "thermal_protection_persistence_seconds must be at least 5"
+            )
+        if self.thermal_protection_recovery_hysteresis_c < 0:
+            raise ValueError(
+                "thermal_protection_recovery_hysteresis_c cannot be negative"
+            )
 
         boolean_fields = (
             "notifications_enabled",
@@ -44,6 +68,7 @@ class AppConfig:
             "alert_critical_enabled",
             "alert_reminder_enabled",
             "alert_recovery_enabled",
+            "thermal_protection_enabled",
         )
         for field_name in boolean_fields:
             if not isinstance(getattr(self, field_name), bool):

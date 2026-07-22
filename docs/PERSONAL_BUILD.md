@@ -1,36 +1,42 @@
-# Personal build 0.0.1
+# Personal build status — 0.0.5
 
-This bootstrap is intentionally narrow so it can be used immediately on the maintainer's Linux workstation.
+This build is intentionally focused so it can be used immediately on the maintainer's Linux workstation while the packaging and broader hardware roadmap remain open.
 
 ## Included
 
-- styled tray icon and sectioned menu;
-- CPU utilisation;
-- RAM and swap utilisation;
+- compact single-level tray menu;
+- total CPU utilisation;
+- coherent RAM pressure, unavailable/total and available memory;
+- swap utilisation;
 - CPU package and per-core temperature discovery;
 - hottest-sensor thermal policy;
-- package and per-core temperatures visible directly in the tray menu;
-- GTK preferences page;
-- configurable warning, critical, reminder, and recovery alert types;
-- user-local install and optional autostart controlled from the preferences window;
-- configurable thresholds without root privileges.
+- warning, critical, reminder and recovery notifications;
+- GTK preferences for monitoring, alerts, preventive protection, fans and startup;
+- per-user installation and optional XDG autostart;
+- read-only kernel critical trip-point display;
+- optional preventive hibernation or suspension when logind authorizes it;
+- read-only fan telemetry and temporary `pkexec`-authorized PWM presets when safely exposed by hwmon;
+- one-shot JSON metrics output.
 
 ## Temperature model
 
-Sentinelux selects the most plausible CPU sensor group and keeps all useful readings from that group. On Intel systems this commonly includes `Package id 0` and one entry per physical core. On other hardware the kernel may expose only package-level readings such as `Tctl` or `Tdie`.
+Sentinelux selects the most plausible CPU sensor group and keeps all useful readings from that group. On Intel systems this can include `Package id 0` and one entry per core. Other hardware may expose package-level readings such as `Tctl` or `Tdie`, or no suitable CPU temperature at all.
 
-The tray displays maximum and average values. Alert transitions always use the hottest selected reading.
+The tray shows every selected reading. Alert and preventive-protection decisions use the hottest selected value.
 
 ## Not included yet
 
-- historical graphs;
+- historical graphs and metric storage;
 - battery and power telemetry;
 - storage and SMART monitoring;
 - network monitoring;
-- fan-speed control;
+- process listing or management;
+- advanced or persistent fan curves;
 - `.deb` package and APT repository;
-- Wayland/desktop-environment-specific integration beyond AppIndicator;
-- matt88.it product-page integration.
+- automatic software updates;
+- formal Wayland and multi-desktop compatibility matrix;
+- runtime English localization;
+- matt88.it product-page implementation.
 
 ## Safe notification test
 

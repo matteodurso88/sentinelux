@@ -53,6 +53,8 @@ class SystemMetrics:
     cpu_percent: float
     memory_percent: float
     memory_used_bytes: int
+    memory_available_bytes: int
+    memory_unavailable_bytes: int
     memory_total_bytes: int
     swap_percent: float
     swap_used_bytes: int
@@ -300,6 +302,18 @@ def collect_metrics(psutil_module: Any | None = None) -> SystemMetrics:
 
     memory = psutil_module.virtual_memory()
     swap = psutil_module.swap_memory()
+    memory_total = int(memory.total)
+    memory_used = int(memory.used)
+    memory_available = int(
+        getattr(memory, "available", max(memory_total - memory_used, 0))
+    )
+    memory_available = min(max(memory_available, 0), memory_total)
+    memory_unavailable = max(memory_total - memory_available, 0)
+    memory_percent = (
+        (memory_unavailable / memory_total) * 100.0
+        if memory_total > 0
+        else 0.0
+    )
     temperature_readings = read_cpu_temperatures(psutil_module)
     hottest = (
         max(temperature_readings, key=lambda reading: reading.value_c)
@@ -315,9 +329,11 @@ def collect_metrics(psutil_module: Any | None = None) -> SystemMetrics:
 
     return SystemMetrics(
         cpu_percent=float(psutil_module.cpu_percent(interval=None)),
-        memory_percent=float(memory.percent),
-        memory_used_bytes=int(memory.used),
-        memory_total_bytes=int(memory.total),
+        memory_percent=memory_percent,
+        memory_used_bytes=memory_used,
+        memory_available_bytes=memory_available,
+        memory_unavailable_bytes=memory_unavailable,
+        memory_total_bytes=memory_total,
         swap_percent=float(swap.percent),
         swap_used_bytes=int(swap.used),
         swap_total_bytes=int(swap.total),

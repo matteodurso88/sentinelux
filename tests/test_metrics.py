@@ -57,14 +57,14 @@ class MetricsTests(unittest.TestCase):
         self.assertIsNone(selected)
 
     def test_collect_metrics_exposes_average_and_sensor_list(self) -> None:
-        Memory = namedtuple("Memory", "percent used total")
+        Memory = namedtuple("Memory", "percent used available total")
         Swap = namedtuple("Swap", "percent used total")
         Sensor = namedtuple("Sensor", "label current")
 
         class FakePsutil:
             @staticmethod
             def virtual_memory():
-                return Memory(50.0, 4 * 1024**3, 8 * 1024**3)
+                return Memory(50.0, 3 * 1024**3, 4 * 1024**3, 8 * 1024**3)
 
             @staticmethod
             def swap_memory():
@@ -85,11 +85,40 @@ class MetricsTests(unittest.TestCase):
                 }
 
         metrics = collect_metrics(FakePsutil)
+        self.assertEqual(metrics.memory_used_bytes, 3 * 1024**3)
+        self.assertEqual(metrics.memory_available_bytes, 4 * 1024**3)
+        self.assertEqual(metrics.memory_unavailable_bytes, 4 * 1024**3)
+        self.assertEqual(metrics.memory_percent, 50.0)
         self.assertEqual(metrics.cpu_temperature_c, 67.0)
         self.assertAlmostEqual(metrics.cpu_temperature_average_c or 0, 62.3333, places=3)
         self.assertEqual(metrics.temperature_label, "Core 1")
         self.assertEqual(len(metrics.temperature_readings), 3)
         self.assertEqual(len(metrics.to_dict()["temperature_readings"]), 3)
+
+    def test_memory_percent_is_derived_from_available_memory(self) -> None:
+        Memory = namedtuple("Memory", "percent used available total")
+        Swap = namedtuple("Swap", "percent used total")
+
+        class FakePsutil:
+            @staticmethod
+            def virtual_memory():
+                return Memory(99.0, 2 * 1024**3, 1 * 1024**3, 4 * 1024**3)
+
+            @staticmethod
+            def swap_memory():
+                return Swap(0.0, 0, 0)
+
+            @staticmethod
+            def cpu_percent(interval=None):
+                return 0.0
+
+            @staticmethod
+            def sensors_temperatures(fahrenheit=False):
+                return {}
+
+        metrics = collect_metrics(FakePsutil)
+        self.assertEqual(metrics.memory_unavailable_bytes, 3 * 1024**3)
+        self.assertEqual(metrics.memory_percent, 75.0)
 
     def test_human_bytes(self) -> None:
         self.assertEqual(human_bytes(0), "0 B")
