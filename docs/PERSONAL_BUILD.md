@@ -9,10 +9,10 @@ This bootstrap is intentionally narrow so it can be used immediately on the main
 - RAM and swap utilisation;
 - CPU package and per-core temperature discovery;
 - hottest-sensor thermal policy;
-- sensor-detail submenu;
+- package and per-core temperatures visible directly in the tray menu;
 - GTK preferences page;
 - configurable warning, critical, reminder, and recovery alert types;
-- user-local install and optional autostart;
+- user-local install and optional autostart controlled from the preferences window;
 - configurable thresholds without root privileges.
 
 ## Temperature model

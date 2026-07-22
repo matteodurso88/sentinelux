@@ -2,6 +2,17 @@
 
 All notable changes to Sentinelux will be documented in this file.
 
+## [0.0.2] - Unreleased
+
+### Changed
+
+- Replaced the sectioned tray layout with a compact single-level menu.
+- Added icon-prefixed rows with CPU, RAM, swap, package, and every detected core value visible immediately.
+- Moved thermal state and hottest temperature into the one-line Sentinelux header.
+- Kept preferences and per-alert controls without a sensor submenu.
+- Reworked metric rows as standard AppIndicator-compatible menu labels.
+- Added an Avvio preferences page to enable or disable XDG autostart.
+
 ## [0.0.1] - Unreleased
 
 ### Added

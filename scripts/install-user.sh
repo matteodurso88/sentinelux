@@ -21,6 +21,7 @@ cat > "$LAUNCHER" <<EOF_LAUNCHER
 #!/usr/bin/env bash
 set -euo pipefail
 export PYTHONPATH="$APP_DIR/src\${PYTHONPATH:+:\$PYTHONPATH}"
+export SENTINELUX_AUTOSTART_EXEC="$LAUNCHER"
 exec python3 -m sentinelux "\$@"
 EOF_LAUNCHER
 chmod 0755 "$LAUNCHER"

@@ -10,8 +10,8 @@ The first personal build provides:
 - thermal policy based on the hottest detected CPU sensor;
 - warning, critical, reminder, and recovery desktop notifications;
 - independent enable/disable controls for each alert type;
-- a compact, sectioned GTK tray menu with sensor details;
-- a GTK preferences page for thresholds, refresh interval, and notifications;
+- a compact single-level GTK tray menu with icon-prefixed values and every detected CPU sensor visible;
+- a GTK preferences page for thresholds, refresh interval, notifications, and automatic startup;
 - JSON configuration under `~/.config/sentinelux/config.json`;
 - no root requirement, telemetry, or network activity.
 
@@ -33,7 +33,8 @@ Open **Preferenze…** from the tray menu to configure:
 - recovery hysteresis;
 - reminder interval;
 - notification master switch;
-- warning, critical, reminder, and recovery alert types.
+- warning, critical, reminder, and recovery alert types;
+- automatic startup at desktop login.
 
 Install for the current user:
 
@@ -42,7 +43,7 @@ Install for the current user:
 ~/.local/bin/sentinelux --debug
 ```
 
-Enable autostart:
+Enable autostart from **Preferenze… → Avvio**, or from the terminal:
 
 ```bash
 ./scripts/enable-autostart.sh

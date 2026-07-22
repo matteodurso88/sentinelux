@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from .autostart import (
+    AutostartError,
+    autostart_path,
+    is_autostart_enabled,
+    set_autostart_enabled,
+)
 from .config import AppConfig, save_config
 
 
 class SettingsWindow:
-    """Small preferences page for thermal policy and notification types."""
+    """Small preferences page for thermal policy, alerts, and startup."""
 
     def __init__(
         self,
@@ -20,13 +26,13 @@ class SettingsWindow:
         self.on_save = on_save
 
         self.window = Gtk.Window(title="Preferenze Sentinelux")
-        self.window.set_default_size(520, 470)
+        self.window.set_default_size(560, 500)
         self.window.set_position(Gtk.WindowPosition.CENTER)
         self.window.connect("delete-event", self._hide)
 
         header = Gtk.HeaderBar()
         header.set_title("Sentinelux")
-        header.set_subtitle("Monitoraggio e alert termici")
+        header.set_subtitle("Monitoraggio, alert e avvio")
         header.set_show_close_button(True)
         self.window.set_titlebar(header)
 
@@ -41,8 +47,10 @@ class SettingsWindow:
 
         general_page = self._build_general_page()
         alerts_page = self._build_alerts_page()
+        startup_page = self._build_startup_page()
         notebook.append_page(general_page, Gtk.Label(label="Monitoraggio"))
         notebook.append_page(alerts_page, Gtk.Label(label="Alert"))
+        notebook.append_page(startup_page, Gtk.Label(label="Avvio"))
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         root.pack_start(separator, False, False, 0)
@@ -166,6 +174,50 @@ class SettingsWindow:
         box.pack_start(note, False, False, 0)
         return box
 
+    def _build_startup_page(self) -> Any:
+        box = self.Gtk.Box(orientation=self.Gtk.Orientation.VERTICAL, spacing=14)
+        box.set_border_width(18)
+
+        title = self.Gtk.Label()
+        title.set_markup("<b>Avvio automatico</b>")
+        title.set_xalign(0)
+        box.pack_start(title, False, False, 0)
+
+        row = self.Gtk.Box(orientation=self.Gtk.Orientation.HORIZONTAL, spacing=12)
+        label = self.Gtk.Label(label="Avvia Sentinelux all'accesso")
+        label.set_xalign(0)
+        row.pack_start(label, True, True, 0)
+        self.autostart_switch = self.Gtk.Switch()
+        self.autostart_switch.connect("notify::active", self._sync_autostart_status)
+        row.pack_end(self.autostart_switch, False, False, 0)
+        box.pack_start(row, False, False, 0)
+
+        self.autostart_status = self.Gtk.Label()
+        self.autostart_status.set_xalign(0)
+        self.autostart_status.set_line_wrap(True)
+        box.pack_start(self.autostart_status, False, False, 0)
+
+        path_label = self.Gtk.Label(
+            label=f"File gestito: {autostart_path()}"
+        )
+        path_label.set_xalign(0)
+        path_label.set_line_wrap(True)
+        path_label.get_style_context().add_class("dim-label")
+        box.pack_start(path_label, False, False, 0)
+
+        note = self.Gtk.Label(
+            label=(
+                "La modifica viene applicata premendo Salva. In modalità sviluppo "
+                "l'avvio automatico punta allo script run-dev.sh del repository; "
+                "dopo l'installazione punta al launcher utente."
+            )
+        )
+        note.set_xalign(0)
+        note.set_line_wrap(True)
+        note.get_style_context().add_class("dim-label")
+        box.pack_start(note, False, False, 0)
+        return box
+
     def _spin(
         self,
         minimum: float,
@@ -209,9 +261,13 @@ class SettingsWindow:
         self.critical_check.set_active(config.alert_critical_enabled)
         self.reminder_check.set_active(config.alert_reminder_enabled)
         self.recovery_check.set_active(config.alert_recovery_enabled)
+        self.autostart_switch.set_active(is_autostart_enabled())
         self._sync_alert_sensitivity()
+        self._sync_autostart_status()
 
     def present(self) -> None:
+        self.autostart_switch.set_active(is_autostart_enabled())
+        self._sync_autostart_status()
         self.window.show_all()
         self.window.present()
 
@@ -219,6 +275,16 @@ class SettingsWindow:
         enabled = bool(self.notifications_switch.get_active())
         for check in self.alert_checks:
             check.set_sensitive(enabled)
+
+    def _sync_autostart_status(self, *_: Any) -> None:
+        if self.autostart_switch.get_active():
+            self.autostart_status.set_text(
+                "Attivo: Sentinelux verrà avviato automaticamente alla prossima sessione."
+            )
+        else:
+            self.autostart_status.set_text(
+                "Disattivo: Sentinelux dovrà essere avviato manualmente."
+            )
 
     def _restore_defaults(self, *_: Any) -> None:
         self.load_config(AppConfig())
@@ -236,11 +302,19 @@ class SettingsWindow:
             alert_reminder_enabled=bool(self.reminder_check.get_active()),
             alert_recovery_enabled=bool(self.recovery_check.get_active()),
         )
+        original_autostart = is_autostart_enabled()
+        requested_autostart = bool(self.autostart_switch.get_active())
         try:
             config.validate()
+            set_autostart_enabled(requested_autostart)
             save_config(config)
             self.on_save(config)
-        except (OSError, ValueError) as exc:
+        except (AutostartError, OSError, ValueError) as exc:
+            if is_autostart_enabled() != original_autostart:
+                try:
+                    set_autostart_enabled(original_autostart)
+                except (AutostartError, OSError):
+                    pass
             dialog = self.Gtk.MessageDialog(
                 transient_for=self.window,
                 modal=True,
