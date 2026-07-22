@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Sentinelux
+Comment=Linux hardware monitor with thermal alerts
+Exec=@EXEC@
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;Monitor;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinelux"
+version = "0.0.1"
+description = "Tray-first Linux hardware monitor with thermal alerts"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+  { name = "Matteo D'Urso" }
+]
+keywords = ["linux", "hardware-monitor", "temperature", "tray", "gtk"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: X11 Applications :: GTK",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: System :: Monitoring",
+]
+dependencies = [
+  "psutil>=5.9",
+]
+
+[project.scripts]
+sentinelux = "sentinelux.__main__:main"
+
+[project.urls]
+Homepage = "https://matt88.it"
+Repository = "https://github.com/matteodurso88/sentinelux"
+Issues = "https://github.com/matteodurso88/sentinelux/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
