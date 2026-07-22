@@ -330,8 +330,8 @@ Il runtime analizzato non contiene client HTTP, telemetria o sincronizzazione. L
 |---|---|
 | Licenza | GPL-3.0-or-later, file `LICENSE` presente |
 | Repository | Pubblico: `matteodurso88/sentinelux` |
-| Branch strategy | Default `main`; nessuna strategia formale documentata |
-| Contribuzione | Nessun `CONTRIBUTING.md`; tracker dichiarato nel manifest |
+| Branch strategy | `main` protetto; pull request obbligatoria; cronologia lineare; force push e cancellazione bloccati; conversazioni da risolvere |
+| Contribuzione | Guida bilingue, governance, codice di condotta, supporto, sicurezza, issue form e template PR presenti |
 | Issue tracker | URL presente in `pyproject.toml`; nessuna issue aperta trovata il 2026-07-22 |
 | Changelog | Presente, versioni `0.0.1`–`0.0.5` marcate Unreleased |
 | Release/tag | Nessuna release referenziata nel materiale analizzato; stato GitHub Releases: `DA CONFERMARE` |
@@ -342,7 +342,7 @@ Il runtime analizzato non contiene client HTTP, telemetria o sincronizzazione. L
 | Aggiornamento | Manuale tramite aggiornamento sorgenti e reinstallazione utente |
 | Installazione da sorgente | Implementata tramite script Debian e installer per utente |
 | Wheel/PyPI | Metadata setuptools presente; pubblicazione e procedura: `DA CONFERMARE` |
-| Pull request | Nessuna PR rilevata al 2026-07-22 |
+| Pull request | Workflow documentato; nessuna PR reale rilevata al 2026-07-22 |
 
 La pubblicazione iniziale sul sito dovrebbe usare il repository come destinazione primaria e indicare chiaramente che non esiste ancora una release installabile.
 
@@ -362,7 +362,7 @@ Le percentuali non vengono riportate perché non esiste una misura di avanzament
 | Packaging | Iniziale | — | Nessun `.deb` | Pacchetto riproducibile e firmabile | script, roadmap |
 | Installazione | Operativa per utente | — | Solo Debian-family e sorgente | Installer documentato su sistemi target | `install-user.sh` |
 | Aggiornamenti | Non implementati | — | Nessun canale release | Meccanismo definito e testato | roadmap |
-| Documentazione | Buona base bilingue | — | Mancano guida contribuzione e support matrix | README, guide e policy complete | README IT/EN, dossier |
+| Documentazione | Base bilingue e community policy presenti | — | Manca support matrix verificata | README, guide, policy e matrice compatibilità complete | README IT/EN, community files, dossier |
 | Test | 42 unit test locali | — | Nessuna CI e test GUI/hardware | CI più smoke test desktop | directory `tests` |
 | Accessibilità | `DA CONFERMARE` | — | Nessun audit | Test tastiera, contrasto e screen reader | assenza evidenze |
 | Localizzazione | Parziale | — | UI italiana hard-coded | gettext o sistema equivalente IT/EN | sorgenti UI |
@@ -700,7 +700,7 @@ product:
 
 | Azione | Responsabile | Evidenza richiesta | Impatto | Dipendenze |
 |---|---|---|---|---|
-| Consolidare e pubblicare il commit `0.0.5` | Matteo D’Urso | Commit remoto con codice, README bilingue e dossier | Il sito non deve descrivere codice non presente su GitHub | Test e revisione finale |
+| Definire la prima release pubblica | Matteo D’Urso | Tag, note release e artefatto oppure dichiarazione esplicita source-only | Determina CTA e disponibilità pubblica | Packaging e decisione editoriale |
 | Decidere se la pagina presenta una pre-alpha senza download | Matteo D’Urso / matt88.it | Decisione editoriale e CTA approvata | Evita una CTA “Scarica” senza artefatto | Stato repository |
 | Produrre almeno uno screenshot sanitizzato | Matteo D’Urso | Immagine senza dati personali, coerente con `0.0.5` | Necessario per una pagina prodotto credibile | Build installata |
 | Verificare denominazione legale/autore pubblico | Matteo D’Urso | Nome/copyright da mostrare | Necessario per footer, licenza e crediti | Informazioni legali matt88.it |
@@ -712,7 +712,7 @@ product:
 |---|---|---|---|---|
 | Creare una release o dichiarare esplicitamente “pre-alpha disponibile solo come sorgente” | Matteo D’Urso | Tag/release oppure copy approvato | Chiarisce disponibilità | Commit consolidato |
 | Aggiungere support matrix minima | Progetto Sentinelux | Test su distro/desktop/sessione | Migliora affidabilità del copy | Ambienti di test |
-| Definire canale issue e contributi | Progetto Sentinelux | `CONTRIBUTING.md` e template essenziale | Rende il repository accogliente | Workflow GitHub |
+| Validare il workflow con la prima PR reale | Progetto Sentinelux | Issue form compilata, PR, review e merge senza bypass | Conferma operativa del processo contributivo | Branch protection e community files |
 | Verificare la pagina su X11 e Wayland | Progetto Sentinelux | Report riproducibile | Riduce ambiguità compatibilità | Macchine/VM |
 | Chiudere changelog `Unreleased` per una versione pubblica | Progetto Sentinelux | Data release e note | Coerenza GitHub/sito | Decisione release |
 | Confermare che il dominio/route matt88.it esista | Team matt88.it | Route implementata | Necessario per pubblicazione | Repository matt88.it |

@@ -195,11 +195,18 @@ The script intentionally retains `~/.config/sentinelux`. The fan helper, when in
 
 ## Contributing
 
-The repository is public and the project-declared issue tracker is:
+The `main` branch is protected and changes enter the project through pull requests. External contributors normally work from a fork; authorized collaborators use a dedicated branch in the repository. Direct pushes to `main` are not part of the accepted workflow.
 
-`https://github.com/matteodurso88/sentinelux/issues`
+Open a descriptive issue before large changes, hardware integrations, or new privileged operations. Run the compile check, unit suite, and `git diff --check` before submitting a pull request. Authorized maintainers decide whether to merge, request changes, or close a proposal.
 
-A formal contribution guide is not available yet. Opening a descriptive issue before a large change is recommended.
+Project documents:
+
+- [Contribution guide](CONTRIBUTING.md)
+- [Governance and merge policy](GOVERNANCE.md)
+- [Support](SUPPORT.md)
+- [Security policy](SECURITY.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Issue tracker](https://github.com/matteodurso88/sentinelux/issues)
 
 ## License
 

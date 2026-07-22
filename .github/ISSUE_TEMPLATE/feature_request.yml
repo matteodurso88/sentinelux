@@ -1,0 +1,68 @@
+name: Feature request / Proposta funzionalità
+description: Propose a focused improvement / Proponi un miglioramento delimitato
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the user problem before the implementation. Spiega il problema dell'utente prima dell'implementazione.
+        Large hardware integrations, privileged actions, and architectural changes require discussion before coding.
+  - type: checkboxes
+    id: preliminary
+    attributes:
+      label: Preliminary checks / Controlli preliminari
+      options:
+        - label: I searched for an existing request / Ho cercato una proposta esistente
+          required: true
+        - label: This request fits Sentinelux system-monitoring scope / La proposta rientra nello scope di monitoraggio Sentinelux
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem / Problema dell'utente
+      description: Who needs this and what cannot be done today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior / Comportamento proposto
+      description: Describe the outcome, not only a preferred implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered / Alternative considerate
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Tray and interface / Tray e interfaccia
+        - Metrics and sensors / Metriche e sensori
+        - Alerts and thermal protection / Alert e protezione termica
+        - Fans and hardware control / Ventole e controllo hardware
+        - Installation and packaging / Installazione e packaging
+        - Documentation and localization / Documentazione e localizzazione
+        - Tests and tooling / Test e strumenti
+        - Other / Altro
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety, privacy, and privilege impact / Impatto su sicurezza, privacy e privilegi
+      description: State whether the proposal adds hardware writes, privileged commands, network access, telemetry, logging, or personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility context / Contesto di compatibilità
+      description: Distribution, desktop, X11/Wayland, hardware, drivers, or optional sensors involved.
+  - type: textarea
+    id: contribution
+    attributes:
+      label: Contribution availability / Disponibilità a contribuire
+      description: State whether you can implement, test, document, or review the proposal.

@@ -1,0 +1,25 @@
+name: Private contact request / Richiesta contatto privato
+description: Request a private channel for security or conduct concerns without publishing details
+title: "[Private contact request]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include vulnerability details, proof of concept, personal data, names, logs, or descriptions of a conduct incident in this public form.
+        Non inserire dettagli della vulnerabilità, proof of concept, dati personali, nomi, log o descrizioni di un episodio di condotta in questo modulo pubblico.
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic / Argomento
+      options:
+        - Security vulnerability / Vulnerabilità di sicurezza
+        - Community conduct / Condotta nella comunità
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation / Conferma
+      options:
+        - label: I have not included sensitive details and only request a private contact channel / Non ho incluso dettagli sensibili e richiedo soltanto un canale privato
+          required: true

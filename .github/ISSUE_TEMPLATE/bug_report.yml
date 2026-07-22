@@ -1,0 +1,92 @@
+name: Bug report / Segnalazione bug
+description: Report a reproducible Sentinelux problem / Segnala un problema riproducibile
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Grazie per la segnalazione.
+        Search existing issues first and remove personal data, usernames, hostnames, private paths, tokens, and unrelated logs.
+        Cerca prima tra le issue esistenti e rimuovi dati personali, username, hostname, percorsi privati, token e log non pertinenti.
+  - type: checkboxes
+    id: preliminary
+    attributes:
+      label: Preliminary checks / Controlli preliminari
+      options:
+        - label: I searched for an existing issue / Ho cercato una issue esistente
+          required: true
+        - label: I removed sensitive and personal data / Ho rimosso dati sensibili e personali
+          required: true
+        - label: This is not a private security report / Non è una segnalazione di sicurezza privata
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Sentinelux version or commit / Versione o commit Sentinelux
+      description: Output of sentinelux --version and, when relevant, git rev-parse HEAD
+      placeholder: "sentinelux --version output or commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: distribution
+    attributes:
+      label: Distribution / Distribuzione
+      placeholder: "Debian-family distribution and version"
+    validations:
+      required: true
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop session / Sessione desktop
+      placeholder: "Xfce 4.x, X11 or Wayland"
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method / Metodo di installazione
+      options:
+        - Development script / Script di sviluppo
+        - Per-user installer / Installer utente
+        - Source checkout / Checkout sorgenti
+        - Other / Altro
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Observed behavior / Comportamento osservato
+      description: Describe the exact problem and visible error.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / Comportamento atteso
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps / Passaggi per riprodurre
+      placeholder: |
+        1. Start Sentinelux with ...
+        2. Open ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Relevant diagnostics / Diagnostica pertinente
+      description: Add only essential --debug or --once output. Redact personal data. Do not force thermal events or hardware writes.
+      render: shell
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware or sensor context / Contesto hardware o sensori
+      description: Mention CPU, driver, hwmon or thermal-zone availability when relevant. Do not upload a full machine inventory.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context / Contesto aggiuntivo
