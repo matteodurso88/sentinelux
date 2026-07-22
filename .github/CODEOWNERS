@@ -1,0 +1,10 @@
+# Default owner for every path in Sentinelux.
+* @matteodurso88
+
+# Explicit ownership for repository policy and community files.
+/.github/ @matteodurso88
+/CONTRIBUTING.md @matteodurso88
+/CODE_OF_CONDUCT.md @matteodurso88
+/SECURITY.md @matteodurso88
+/SUPPORT.md @matteodurso88
+/GOVERNANCE.md @matteodurso88

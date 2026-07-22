@@ -193,11 +193,18 @@ Lo script conserva intenzionalmente `~/.config/sentinelux`. L’helper ventole, 
 
 ## Contribuire
 
-Il repository è pubblico e il tracker indicato dal progetto è:
+Il branch `main` è protetto e le modifiche entrano nel progetto tramite pull request. I contributori esterni lavorano normalmente su un fork; i collaboratori autorizzati usano un branch dedicato nello stesso repository. Il push diretto su `main` non fa parte del workflow accettato.
 
-`https://github.com/matteodurso88/sentinelux/issues`
+Prima di una modifica estesa, di un'integrazione hardware o di una nuova operazione privilegiata, apri una issue descrittiva. Esegui sempre compile check, suite unitaria e `git diff --check` prima della pull request. I maintainer autorizzati decidono merge, richieste di modifica o chiusura.
 
-Non è ancora disponibile una guida formale alla contribuzione. Prima di una modifica estesa è opportuno aprire una issue descrittiva.
+Documenti del progetto:
+
+- [Guida alla contribuzione](CONTRIBUTING.md)
+- [Governance e policy di merge](GOVERNANCE.md)
+- [Supporto](SUPPORT.md)
+- [Policy di sicurezza](SECURITY.md)
+- [Codice di condotta](CODE_OF_CONDUCT.md)
+- [Issue tracker](https://github.com/matteodurso88/sentinelux/issues)
 
 ## Licenza
 

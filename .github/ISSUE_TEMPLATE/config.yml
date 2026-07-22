@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security policy / Policy di sicurezza
+    url: https://github.com/matteodurso88/sentinelux/security/policy
+    about: Do not disclose vulnerabilities in public issues / Non divulgare vulnerabilità nelle issue pubbliche
+  - name: Support guide / Guida supporto
+    url: https://github.com/matteodurso88/sentinelux/blob/main/SUPPORT.md
+    about: Read what information to collect before opening an issue / Leggi quali informazioni raccogliere prima di aprire una issue

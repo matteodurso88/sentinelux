@@ -8,6 +8,9 @@ All notable changes to Sentinelux will be documented in this file.
 
 - Added Italian and English GitHub documentation with a bilingual landing README.
 - Added the public Sentinelux product dossier and matt88.it handoff under `docs/public/`.
+- Added standard GitHub community files: contribution, governance, support, security and conduct policies.
+- Added bilingual issue forms, a pull request template and `CODEOWNERS`.
+- Documented the protected-branch workflow and maintainer-led merge policy.
 
 ### Changed
 
