@@ -112,54 +112,53 @@ Azioni disponibili:
 
 Sentinelux interroga `systemd-logind` per verificare se l’azione è disponibile e autorizzata. Non modifica le soglie del kernel, del BIOS, del firmware o dell’hardware. La soglia `critical` mostrata nella GUI è una lettura di `/sys/class/thermal` e può non rappresentare tutte le protezioni presenti nella macchina.
 
-## Ventole e preset PWM
+## Ventole e profili termici
 
-Sentinelux legge i canali esposti in `/sys/class/hwmon`. La pagina resta in sola lettura quando il sistema non espone contemporaneamente:
+**Backend nativo (preferito)** — se il kernel Linux espone
+`/sys/firmware/acpi/platform_profile` e
+`/sys/firmware/acpi/platform_profile_choices`, Sentinelux mostra soltanto
+i profili realmente offerti dal firmware. Sul Dell Latitude 5440 verificato:
+`quiet`, `balanced`, `performance` e `cool`. La voce «Ripristina il profilo
+iniziale» riporta la politica in uso all'avvio di Sentinelux.
 
-- tachimetro `fanN_input`;
-- valore `pwmN`;
-- modalità `pwmN_enable`.
+Questi sono **profili di prestazioni, temperatura e rumorosità**, non velocità
+PWM né percentuali RPM. Non è garantito che gli RPM varino immediatamente o
+a basso carico. Il programma controlla che il profilo richiesto venga letto
+correttamente dal kernel, tenta il rollback quando non viene mantenuto e
+ripristina quello iniziale all'uscita normale. Un servizio esterno (ad esempio
+power-profiles-daemon) o il firmware può modificarlo successivamente.
 
-Per autorizzare i preset su hardware compatibile:
+**Backend PWM generico (fallback)** — utilizzato solo se non è disponibile
+`platform_profile` e il kernel espone congiuntamente RPM, PWM e modalità.
+I preset generici restano `55/70/85/100%` come valori di comando PWM,
+non come percentuali di velocità. Il PWM `dell_smm` è escluso come comando
+manuale non verificato; la telemetria RPM rimane disponibile.
+
+Installare o **reinstallare** l'helper privilegiato dopo aver aggiornato
+Sentinelux, perché l'operazione `profile` è nuova:
 
 ```bash
 ./scripts/install-fan-helper.sh
 ```
 
-Preset di sessione:
-
-- Automatico;
-- Silenzioso · 55%;
-- Bilanciato · 70%;
-- Prestazioni · 85%;
-- Massimo · 100%.
-
-Non esiste un preset a velocità zero. Sentinelux verifica il valore PWM e la modalità riletti dal kernel, poi confronta gli RPM. Un comando accettato non prova da solo che la ventilazione sia cambiata: se il valore viene ignorato, viene tentato il ripristino; se gli RPM restano invariati, l'interfaccia lo segnala esplicitamente. Alla chiusura normale Sentinelux ripristina lo stato iniziale. I preset non sono persistenti e non vengono applicati all’accesso. Per rimuovere l’helper:
+I preset non vengono applicati automaticamente al login. Per rimuovere
+l'helper:
 
 ```bash
 ./scripts/uninstall-fan-helper.sh
 ```
 
-### Diagnostica delle ventole su Dell e altri laptop
-
-La presenza di valori RPM non significa che il firmware consenta il controllo
-manuale. Su alcuni Dell il driver `dell_smm` espone una parte delle funzioni,
-ma il BIOS può riprendere il controllo. I preset PWM generici descrivono una
-richiesta al driver, non una percentuale RPM garantita.
-
-Prima di provare ulteriori preset, dalla root del repository eseguire la
-diagnostica **in sola lettura**:
+### Diagnostica non invasiva
 
 ```bash
 PYTHONPATH=src python3 scripts/diagnose-fans.py
 ```
 
-Sui Dell, se già installato, `smbios-thermal-ctl --get-thermal-info`
-può indicare se il firmware espone profili termici nativi (bilanciato,
-silenzioso, prestazioni). Questi profili sono distinti dal PWM diretto e
-richiedono verifica hardware prima di un'eventuale integrazione.
+Il comando legge canali `hwmon` e profili `platform_profile`, senza
+scrivere nulla. Su alcuni Dell `dell_ddv` e `dell_smm` possono esporre
+la stessa ventola: due righe `hwmon` non implicano due ventole fisiche.
 
-
+## Dati, rete e privilegi
 
 Durante il normale monitoraggio Sentinelux legge metriche locali tramite `psutil`, `/sys/class/hwmon` e `/sys/class/thermal`. Non contiene telemetria, sincronizzazione cloud o chiamate di rete runtime.
 
