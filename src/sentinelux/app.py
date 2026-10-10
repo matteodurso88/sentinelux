@@ -507,10 +507,6 @@ class SentineluxApplication:
             self.Gtk.main()
         finally:
             self.running = False
-            try:
-                self.fans.restore_original()
-            except FanControlError:
-                LOGGER.exception("cannot restore original fan state")
             if self.runtime_notifications_allowed:
                 self.Notify.uninit()
         return 0
