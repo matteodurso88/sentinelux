@@ -362,7 +362,6 @@ class SettingsWindow:
                 "del firmware (non percentuali RPM). Solo in assenza del backend "
                 "nativo e su hardware compatibile si usa il PWM generico. "
                 "Il profilo iniziale viene ripristinato alla chiusura."
-
             )
         )
         note.set_xalign(0)
@@ -568,7 +567,7 @@ class SettingsWindow:
         elif controllable and self.fan_manager.helper_ready:
             status = (
                 f"Rilevate {detected} ventole; {controllable} controllabili. "
-                f"Preset attuale: {PRESET_LABELS[self.fan_manager.current_preset]}."
+                f"Preset attuale: {PRESET_LABELS.get(self.fan_manager.current_preset, self.fan_manager.current_preset)}."
             )
         elif controllable:
             status = (
