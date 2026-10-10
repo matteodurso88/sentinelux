@@ -18,7 +18,8 @@ The first public alpha targets CPU/RAM/swap monitoring, compact thermal details,
 
 - Detailed documentation in Italian: [README.it.md](README.it.md)
 - Detailed documentation in English: [README.en.md](README.en.md)
-- Public product dossier for matt88.it: [docs/public/sentinelux-matt88-dossier.md](docs/public/sentinelux-matt88-dossier.md)
+- Current public alpha brief: [docs/public/sentinelux-alpha-brief.md](docs/public/sentinelux-alpha-brief.md)
+- Historical (0.0.5) dossier: [docs/public/sentinelux-matt88-dossier.md](docs/public/sentinelux-matt88-dossier.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Alpha release candidate notes: [docs/releases/v0.1.0-alpha.1.md](docs/releases/v0.1.0-alpha.1.md)
 - License: [GPL-3.0-or-later](LICENSE)
