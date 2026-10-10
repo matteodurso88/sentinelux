@@ -192,6 +192,7 @@ class FanManager:
         self.helper_path = helper_path or Path("/usr/libexec/sentinelux-fan-helper")
         self.helper_trust_checker = helper_trust_checker or self._helper_is_trusted
         self.current_preset = "automatic"
+        self.last_feedback = ""
         self._channels: tuple[FanChannel, ...] = ()
         self._baseline: dict[str, FanState] = {}
         self.refresh()
@@ -267,6 +268,7 @@ class FanManager:
                 )
             self._run_helper("automatic", payload)
             self.current_preset = preset
+            self.last_feedback = "Controllo automatico richiesto al driver."
             self.refresh()
             return
 
@@ -279,21 +281,61 @@ class FanManager:
             }
             for channel in channels
         ]
+        self.last_feedback = ""
         self._run_helper("manual", payload)
         self.current_preset = preset
         self.sleeper(1.1)
         updated = {channel.identifier: channel for channel in self.refresh()}
+
+        # A successful privileged helper exit does not prove that the kernel
+        # accepted the requested PWM/mode, much less that the fan responded.
+        invalid = [
+            channel.label
+            for channel in channels
+            if (
+                (observed := updated.get(channel.identifier)) is None
+                or observed.pwm_value != value
+                or observed.enable_mode != 1
+            )
+        ]
         stalled = [
             channel.label
             for channel in channels
             if updated.get(channel.identifier) is not None
             and updated[channel.identifier].rpm == 0
         ]
-        if stalled:
-            self.restore_original()
-            raise FanControlError(
-                "feedback RPM nullo dopo l'applicazione: " + ", ".join(stalled)
+        if invalid or stalled:
+            failure = (
+                "Il driver/firmware non ha mantenuto PWM e modo manuale: "
+                + ", ".join(invalid)
+                if invalid
+                else "Feedback RPM nullo dopo l'applicazione: " + ", ".join(stalled)
             )
+            try:
+                self.restore_original()
+            except FanControlError as restore_error:
+                raise FanControlError(
+                    f"{failure}. Ripristino non riuscito: {restore_error}"
+                ) from restore_error
+            raise FanControlError(f"{failure}. Controllo automatico ripristinato.")
+
+        rpm_changes = [
+            channel
+            for channel in channels
+            if (
+                updated[channel.identifier].rpm is not None
+                and channel.rpm is not None
+                and abs(updated[channel.identifier].rpm - channel.rpm)
+                >= max(100, int(channel.rpm * 0.05))
+            )
+        ]
+        self.last_feedback = (
+            "PWM e modalità confermati dal driver. Variazione RPM osservata, "
+            "non attribuibile con certezza al preset."
+            if rpm_changes
+            else "PWM e modalità confermati dal driver, ma RPM sostanzialmente "
+            "invariati: il firmware potrebbe mantenere il controllo."
+        )
 
     def restore_original(self) -> None:
         if self.current_preset == "automatic":
@@ -316,6 +358,7 @@ class FanManager:
             return
         self._run_helper("restore", payload)
         self.current_preset = "automatic"
+        self.last_feedback = "Stato precedente ripristinato."
         self.refresh()
 
     def _run_helper(self, operation: str, payload: Iterable[dict[str, object]]) -> None:
