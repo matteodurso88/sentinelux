@@ -51,6 +51,31 @@ To trigger notifications without heating the machine, temporarily start Sentinel
 
 Exit the application from its tray menu and restart it normally afterward.
 
+## Fan-control safety and Dell diagnostics
+
+Fan control is not guaranteed by a successful `pkexec` helper exit.
+The manager now checks PWM and mode values read back from `hwmon` and warns
+if the tachometer fails to show meaningful change. On Dell SMM systems, the
+BIOS may override requested fan levels. Profile selection through OEM
+SMBIOS interfaces is a separate capability, not a generic PWM duty cycle.
+
+Read-only capability check (no `sudo`, no sysfs writes):
+
+```bash
+PYTHONPATH=src python3 scripts/diagnose-fans.py
+```
+
+If the manufacturer thermal CLI is already present, inspect its
+supported modes without writing a profile:
+
+```bash
+smbios-thermal-ctl --get-thermal-info
+```
+
+Apply/test PWM presets on actual hardware only with verified reversible
+control and observe RPM, CPU temperature, and driver mode. Never bypass
+firmware protections or force unsupported SMM codes.
+
 ## Temperature diagnostics
 
 When no CPU temperature is detected, collect these outputs:
