@@ -1,97 +1,79 @@
+"""Read-only fan telemetry regressions for the public alpha release."""
+
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from sentinelux.fans import (
-    FanManager,
-    PRESET_LABELS,
-    discover_fans,
-    format_fan_channel,
-    preset_pwm_value,
-)
+from sentinelux.fans import FanManager, discover_fans, format_fan_channel
 
 
-class FakeResult:
-    returncode = 0
-    stdout = ""
-    stderr = ""
-
-
-class FanDiscoveryTests(unittest.TestCase):
+class FanTelemetryTests(unittest.TestCase):
     def _tree(self, root: Path) -> Path:
         hwmon = root / "hwmon0"
         hwmon.mkdir()
-        (hwmon / "name").write_text("testchip\n", encoding="utf-8")
+        (hwmon / "name").write_text("dell_smm\n", encoding="utf-8")
         (hwmon / "fan1_label").write_text("CPU Fan\n", encoding="utf-8")
-        (hwmon / "fan1_input").write_text("2400\n", encoding="utf-8")
-        (hwmon / "pwm1").write_text("178\n", encoding="utf-8")
-        (hwmon / "pwm1_enable").write_text("2\n", encoding="utf-8")
+        (hwmon / "fan1_input").write_text("1406\n", encoding="utf-8")
+        (hwmon / "pwm1").write_text("128\n", encoding="utf-8")
+        (hwmon / "pwm1_enable").write_text("1\n", encoding="utf-8")
         return hwmon
 
-    def test_discovers_controllable_channel(self) -> None:
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = Path(raw_root)
-            self._tree(root)
-            channels = discover_fans(root)
+    def test_hwmon_snapshot_is_read_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            chip = self._tree(root)
+            before = {
+                name: (chip / name).read_bytes()
+                for name in ("fan1_input", "pwm1", "pwm1_enable")
+            }
+            manager = FanManager(hwmon_root=root)
+            self.assertEqual(len(manager.channels), 1)
+            self.assertEqual(manager.channels[0].rpm, 1406)
+            self.assertEqual(manager.channels[0].pwm_value, 128)
+            self.assertEqual(manager.channels[0].enable_mode, 1)
+            self.assertIn("1406 RPM", format_fan_channel(manager.channels[0]))
+            self.assertIn("(driver)", format_fan_channel(manager.channels[0]))
+            manager.refresh()
+            after = {name: (chip / name).read_bytes() for name in before}
+            self.assertEqual(before, after)
 
-        self.assertEqual(len(channels), 1)
-        channel = channels[0]
-        self.assertTrue(channel.controllable)
-        self.assertEqual(channel.rpm, 2400)
-        self.assertEqual(channel.enable_mode, 2)
-        self.assertIn("CPU Fan", format_fan_channel(channel))
-        self.assertIn("2400 RPM", format_fan_channel(channel))
+            # Even a chip advertising writable-looking PWM has no control API
+            # in this prerelease. No privileged runner or helper is needed.
+            self.assertFalse(hasattr(manager, "apply_preset"))
+            self.assertFalse(hasattr(manager, "_run_helper"))
+            self.assertFalse(hasattr(manager, "restore_original"))
 
-    def test_preset_values_never_stop_the_fan(self) -> None:
-        self.assertIsNone(preset_pwm_value("automatic"))
-        self.assertGreaterEqual(preset_pwm_value("quiet") or 0, 128)
-        self.assertEqual(preset_pwm_value("maximum"), 255)
-        self.assertIn("performance", PRESET_LABELS)
+    def test_supports_missing_channels_and_read_only_tachometer(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.assertEqual(discover_fans(root), ())
+            chip = root / "hwmon0"
+            chip.mkdir()
+            (chip / "name").write_text("dell_ddv", encoding="utf-8")
+            (chip / "fan1_input").write_text("1406", encoding="utf-8")
+            channel, = discover_fans(root)
+            self.assertEqual(channel.rpm, 1406)
+            self.assertIsNone(channel.pwm_value)
+            self.assertIsNone(channel.enable_mode)
+            self.assertIn("PWM n.d.", format_fan_channel(channel))
 
-    def test_manager_invokes_privileged_helper_with_validated_payload(self) -> None:
-        calls: list[list[str]] = []
-
-        def runner(command: list[str], **kwargs: object) -> FakeResult:
-            calls.append(command)
-            return FakeResult()
-
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = Path(raw_root)
-            self._tree(root)
-            manager = FanManager(
-                hwmon_root=root,
-                runner=runner,
-                sleeper=lambda _seconds: None,
-                pkexec_path="/usr/bin/pkexec",
-                helper_path=Path(__file__).parents[1]
-                / "src"
-                / "sentinelux"
-                / "fan_helper.py",
-                helper_trust_checker=lambda _path: True,
-            )
-            manager.apply_preset("quiet")
-            self.assertEqual(manager.current_preset, "quiet")
-            manager.restore_original()
-
-        self.assertEqual(calls[0][2], "manual")
-        manual_payload = json.loads(calls[0][3])
-        self.assertEqual(manual_payload[0]["value"], preset_pwm_value("quiet"))
-        self.assertEqual(calls[1][2], "restore")
-
-    def test_read_only_fan_is_not_controllable(self) -> None:
-        with tempfile.TemporaryDirectory() as raw_root:
-            root = Path(raw_root)
-            hwmon = root / "hwmon0"
-            hwmon.mkdir()
-            (hwmon / "name").write_text("readonly\n", encoding="utf-8")
-            (hwmon / "fan1_input").write_text("1800\n", encoding="utf-8")
-            channels = discover_fans(root)
-
-        self.assertEqual(len(channels), 1)
-        self.assertFalse(channels[0].controllable)
+    def test_duplicates_are_reported_as_channels_not_physical_fan_count(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            first = self._tree(root)
+            second = root / "hwmon1"
+            second.mkdir()
+            (second / "name").write_text("dell_ddv", encoding="utf-8")
+            (second / "fan1_input").write_text("1406", encoding="utf-8")
+            found = discover_fans(root)
+            self.assertEqual(len(found), 2)
+            self.assertEqual({c.chip for c in found}, {"dell_smm", "dell_ddv"})
+            self.assertEqual({c.rpm for c in found}, {1406})
+            self.assertEqual(found[0].identifier, "hwmon0:fan1")
+            self.assertEqual(found[1].identifier, "hwmon1:fan1")
+            self.assertEqual((first / "pwm1").read_text(), "128\n")
 
 
 if __name__ == "__main__":
