@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from sentinelux.fans import (
+    FanControlError,
     FanManager,
     PRESET_LABELS,
     discover_fans,
@@ -56,6 +57,13 @@ class FanDiscoveryTests(unittest.TestCase):
 
         def runner(command: list[str], **kwargs: object) -> FakeResult:
             calls.append(command)
+            operation = command[2]
+            for entry in json.loads(command[3]):
+                Path(entry["pwm"]).write_text(str(entry["value"]), encoding="utf-8")
+                Path(entry["enable"]).write_text(
+                    str(entry.get("enable_mode", 1 if operation == "manual" else 2)),
+                    encoding="utf-8",
+                )
             return FakeResult()
 
         with tempfile.TemporaryDirectory() as raw_root:
@@ -74,12 +82,70 @@ class FanDiscoveryTests(unittest.TestCase):
             )
             manager.apply_preset("quiet")
             self.assertEqual(manager.current_preset, "quiet")
+            self.assertIn("RPM sostanzialmente invariati", manager.last_feedback)
             manager.restore_original()
 
         self.assertEqual(calls[0][2], "manual")
         manual_payload = json.loads(calls[0][3])
         self.assertEqual(manual_payload[0]["value"], preset_pwm_value("quiet"))
         self.assertEqual(calls[1][2], "restore")
+
+    def test_rejects_ignored_pwm_commands_and_restores_baseline(self) -> None:
+        calls: list[list[str]] = []
+
+        def ignored_runner(command: list[str], **kwargs: object) -> FakeResult:
+            calls.append(command)
+            return FakeResult()
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            hwmon = self._tree(root)
+            manager = FanManager(
+                hwmon_root=root,
+                runner=ignored_runner,
+                sleeper=lambda _seconds: None,
+                pkexec_path="/usr/bin/pkexec",
+                helper_trust_checker=lambda _path: True,
+            )
+            with self.assertRaisesRegex(FanControlError, "driver/firmware"):
+                manager.apply_preset("maximum")
+            self.assertEqual(manager.current_preset, "automatic")
+            self.assertEqual((hwmon / "pwm1").read_text().strip(), "178")
+        self.assertEqual([call[2] for call in calls], ["manual", "restore"])
+
+    def test_stalled_rpm_restores_original_mode(self) -> None:
+        calls: list[str] = []
+
+        def simulated_runner(command: list[str], **kwargs: object) -> FakeResult:
+            operation = command[2]
+            calls.append(operation)
+            for entry in json.loads(command[3]):
+                Path(entry["pwm"]).write_text(str(entry["value"]), encoding="utf-8")
+                Path(entry["enable"]).write_text(
+                    str(entry.get("enable_mode", 1)),
+                    encoding="utf-8",
+                )
+                if operation == "manual":
+                    Path(entry["pwm"]).with_name("fan1_input").write_text(
+                        "0", encoding="utf-8"
+                    )
+            return FakeResult()
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            hwmon = self._tree(root)
+            manager = FanManager(
+                hwmon_root=root,
+                runner=simulated_runner,
+                sleeper=lambda _seconds: None,
+                pkexec_path="/usr/bin/pkexec",
+                helper_trust_checker=lambda _path: True,
+            )
+            with self.assertRaisesRegex(FanControlError, "RPM nullo"):
+                manager.apply_preset("quiet")
+            self.assertEqual(manager.current_preset, "automatic")
+            self.assertEqual((hwmon / "pwm1_enable").read_text().strip(), "2")
+        self.assertEqual(calls, ["manual", "restore"])
 
     def test_read_only_fan_is_not_controllable(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
