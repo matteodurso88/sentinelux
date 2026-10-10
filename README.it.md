@@ -140,7 +140,26 @@ Non esiste un preset a velocità zero. Sentinelux verifica il valore PWM e la mo
 ./scripts/uninstall-fan-helper.sh
 ```
 
-## Dati, rete e privilegi
+### Diagnostica delle ventole su Dell e altri laptop
+
+La presenza di valori RPM non significa che il firmware consenta il controllo
+manuale. Su alcuni Dell il driver `dell_smm` espone una parte delle funzioni,
+ma il BIOS può riprendere il controllo. I preset PWM generici descrivono una
+richiesta al driver, non una percentuale RPM garantita.
+
+Prima di provare ulteriori preset, dalla root del repository eseguire la
+diagnostica **in sola lettura**:
+
+```bash
+PYTHONPATH=src python3 scripts/diagnose-fans.py
+```
+
+Sui Dell, se già installato, `smbios-thermal-ctl --get-thermal-info`
+può indicare se il firmware espone profili termici nativi (bilanciato,
+silenzioso, prestazioni). Questi profili sono distinti dal PWM diretto e
+richiedono verifica hardware prima di un'eventuale integrazione.
+
+
 
 Durante il normale monitoraggio Sentinelux legge metriche locali tramite `psutil`, `/sys/class/hwmon` e `/sys/class/thermal`. Non contiene telemetria, sincronizzazione cloud o chiamate di rete runtime.
 
