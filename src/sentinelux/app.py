@@ -17,6 +17,7 @@ from .metrics import (
     human_bytes,
 )
 from .presentation import (
+    count_core_sensors,
     format_memory_summary,
     format_percentage,
     format_temperature,
@@ -406,8 +407,14 @@ class SentineluxApplication:
         else:
             self.package_temperature_item.hide()
 
+        core_count = count_core_sensors(readings)
+        count_label = (
+            f"{core_count} core"
+            if core_count
+            else f"{len(readings)} sensori"
+        )
         self.sensor_details_item.set_label(
-            f"▸ Dettaglio sensori termici ({len(readings)})…"
+            f"▸ Dettaglio sensori termici ({count_label})…"
         )
         self.sensor_details_item.set_sensitive(bool(readings))
 
