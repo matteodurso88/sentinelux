@@ -555,6 +555,13 @@ class SettingsWindow:
             )
         else:
             status = "Nessun canale ventola disponibile."
+        if any(channel.chip.lower() == "dell_smm" for channel in channels):
+            status += (
+                "\nDriver Dell SMM: il BIOS può ignorare o sovrascrivere "
+                "le richieste PWM, anche quando un comando è accettato."
+            )
+        if self.fan_manager.last_feedback:
+            status += "\n" + self.fan_manager.last_feedback
         self.fan_status_label.set_text(status)
         self.fan_apply_button.set_sensitive(self.fan_manager.control_available)
         self.fan_channels_box.show_all()
@@ -568,6 +575,7 @@ class SettingsWindow:
                 "Impossibile applicare il preset ventole",
                 str(exc),
             )
+            self.fan_preset_combo.set_active_id(self.fan_manager.current_preset)
             self._refresh_fan_display()
             return
         self._refresh_fan_display()
