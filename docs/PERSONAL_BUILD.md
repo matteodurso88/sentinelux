@@ -56,8 +56,16 @@ Exit the application from its tray menu and restart it normally afterward.
 Fan control is not guaranteed by a successful `pkexec` helper exit.
 The manager now checks PWM and mode values read back from `hwmon` and warns
 if the tachometer fails to show meaningful change. On Dell SMM systems, the
-BIOS may override requested fan levels. Profile selection through OEM
-SMBIOS interfaces is a separate capability, not a generic PWM duty cycle.
+BIOS may override requested fan levels. When the Linux kernel exposes `/sys/firmware/acpi/platform_profile`,
+Sentinelux now uses its advertised native thermal profiles instead of generic
+PWM percentages. The Dell Latitude 5440 reported `cool quiet balanced
+performance` and current `balanced`. No extra SMBIOS package is necessary.
+The installed root-owned fan helper must be refreshed with
+`./scripts/install-fan-helper.sh` before testing this branch.
+
+Kernel thermal profiles are policies, not an RPM guarantee. PWM on
+`dell_smm` is disabled as a manual control backend, but read-only RPM
+telemetry remains available.
 
 Read-only capability check (no `sudo`, no sysfs writes):
 
