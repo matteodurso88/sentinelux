@@ -1,4 +1,4 @@
-# Personal build status — 0.0.5 (unreleased; tray fix in progress)
+# Release candidate — v0.1.0-alpha.1 (not yet published)
 
 This build is intentionally focused so it can be used immediately on the maintainer's Linux workstation while the packaging and broader hardware roadmap remain open.
 
@@ -16,7 +16,7 @@ This build is intentionally focused so it can be used immediately on the maintai
 - per-user installation and optional XDG autostart;
 - read-only kernel critical trip-point display;
 - optional preventive hibernation or suspension when logind authorizes it;
-- read-only fan telemetry and temporary `pkexec`-authorized PWM presets when safely exposed by hwmon;
+- read-only fan telemetry via Linux `hwmon`, without PWM writes, presets or a privileged helper;
 - one-shot JSON metrics output.
 
 ## Temperature model
@@ -32,7 +32,7 @@ The tray shows the hottest CPU reading and, when available, a package-level read
 - storage and SMART monitoring;
 - network monitoring;
 - process listing or management;
-- advanced or persistent fan curves;
+- manual PWM presets, experimental fan-control helper and advanced or persistent fan curves;
 - `.deb` package and APT repository;
 - automatic software updates;
 - formal Wayland and multi-desktop compatibility matrix;
@@ -54,7 +54,7 @@ Exit the application from its tray menu and restart it normally afterward.
 
 ## Local validation (Dell)
 
-After checking out the candidate `work/compact-tray-temperature-details` branch,
+After checking out the candidate `work/first-prerelease-v0.1.0-alpha.1` branch,
 run the project tests and source compilation in the local Linux environment:
 
 ```bash
@@ -69,10 +69,7 @@ for a live GTK smoke test:
 ./scripts/run-dev.sh --debug
 ```
 
-Verify that the main tray is short even with many core sensors, that
-“Dettaglio sensori termici” opens a scrollable and updating window, and that
-thermal alerts/protection thresholds are unchanged. The owner must report
-the local command results and real desktop behavior before PR integration.
+Verify the compact tray and per-core count (14 cores excluding the package on the Dell), that “Dettaglio sensori termici” opens a scrollable and updating window, and that thermal alerts/protection thresholds are unchanged. The **Ventole** page must be read-only, with no preset selector or apply button and no Polkit request. Smoke-test installed-user launcher and normal exit. The owner must report local command results and real desktop evidence before a PR, tag or GitHub prerelease. If an older experimental fan helper is still installed system-wide, remove it separately with `./scripts/uninstall-fan-helper.sh` (this release does not install it).
 
 ## Temperature diagnostics
 
