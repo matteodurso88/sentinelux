@@ -29,6 +29,16 @@ PRESET_LABELS: dict[str, str] = {
 }
 
 
+PLATFORM_PROFILE_LABELS: dict[str, str] = {
+    "automatic": "Ripristina il profilo iniziale",
+    "quiet": "Silenzioso · quiet",
+    "balanced": "Bilanciato · balanced",
+    "performance": "Prestazioni · performance",
+    "cool": "Raffreddamento · cool",
+}
+PLATFORM_PROFILE_ORDER = ("quiet", "balanced", "performance", "cool")
+
+
 class FanControlError(RuntimeError):
     """Raised when a fan preset cannot be applied safely."""
 
@@ -179,6 +189,7 @@ class FanManager:
         self,
         *,
         hwmon_root: Path = Path("/sys/class/hwmon"),
+        platform_root: Path = Path("/sys/firmware/acpi"),
         runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
         sleeper: Callable[[float], None] = time.sleep,
         pkexec_path: str | None = None,
@@ -186,6 +197,7 @@ class FanManager:
         helper_trust_checker: Callable[[Path], bool] | None = None,
     ) -> None:
         self.hwmon_root = hwmon_root
+        self.platform_root = platform_root
         self.runner = runner
         self.sleeper = sleeper
         self.pkexec_path = pkexec_path
@@ -193,6 +205,8 @@ class FanManager:
         self.helper_trust_checker = helper_trust_checker or self._helper_is_trusted
         self.current_preset = "automatic"
         self.last_feedback = ""
+        self._active_backend: str | None = None
+        self._baseline_profile = self.current_platform_profile
         self._channels: tuple[FanChannel, ...] = ()
         self._baseline: dict[str, FanState] = {}
         self.refresh()
@@ -203,7 +217,47 @@ class FanManager:
 
     @property
     def controllable_channels(self) -> tuple[FanChannel, ...]:
-        return tuple(channel for channel in self._channels if channel.controllable)
+        # Dell SMM PWM values do not mean a continuous duty-cycle interface;
+        # require native platform profiles instead of claiming PWM control.
+        return tuple(
+            channel for channel in self._channels
+            if channel.controllable and channel.chip.lower() != "dell_smm"
+        )
+
+    @property
+    def platform_profile_choices(self) -> tuple[str, ...]:
+        raw = _read_text(self.platform_root / "platform_profile_choices")
+        available = set(raw.split()) if raw else set()
+        return tuple(
+            profile for profile in PLATFORM_PROFILE_ORDER if profile in available
+        )
+
+    @property
+    def current_platform_profile(self) -> str | None:
+        value = _read_text(self.platform_root / "platform_profile")
+        return value or None
+
+    @property
+    def platform_profile_available(self) -> bool:
+        return (
+            bool(self.platform_profile_choices)
+            and self.current_platform_profile in self.platform_profile_choices
+        )
+
+    @property
+    def control_backend(self) -> str | None:
+        if self.platform_profile_available:
+            return "platform"
+        return "pwm" if self.controllable_channels else None
+
+    @property
+    def preset_options(self) -> tuple[tuple[str, str], ...]:
+        if self.control_backend == "platform":
+            return (
+                ("automatic", PLATFORM_PROFILE_LABELS["automatic"]),
+                *((name, PLATFORM_PROFILE_LABELS[name]) for name in self.platform_profile_choices),
+            )
+        return tuple(PRESET_LABELS.items())
 
     @property
     def helper_ready(self) -> bool:
@@ -214,7 +268,7 @@ class FanManager:
 
     @property
     def control_available(self) -> bool:
-        return bool(self.controllable_channels) and self.helper_ready
+        return self.control_backend is not None and self.helper_ready
 
     @staticmethod
     def _helper_is_trusted(path: Path) -> bool:
@@ -243,6 +297,12 @@ class FanManager:
         return self._channels
 
     def apply_preset(self, preset: str) -> None:
+        # Native firmware policy is preferred whenever the kernel exposes it.
+        # These profiles are not equivalent to PWM percentages.
+        if self.control_backend == "platform":
+            self._apply_platform_profile(preset)
+            return
+
         value = preset_pwm_value(preset)
         self.refresh()
         channels = self.controllable_channels
@@ -283,6 +343,7 @@ class FanManager:
         ]
         self.last_feedback = ""
         self._run_helper("manual", payload)
+        self._active_backend = "pwm"
         self.current_preset = preset
         self.sleeper(1.1)
         updated = {channel.identifier: channel for channel in self.refresh()}
@@ -337,7 +398,58 @@ class FanManager:
             "invariati: il firmware potrebbe mantenere il controllo."
         )
 
+    def _apply_platform_profile(self, preset: str) -> None:
+        choices = self.platform_profile_choices
+        if preset != "automatic" and preset not in choices:
+            raise FanControlError(f"profilo termico non disponibile: {preset}")
+        target = self._baseline_profile if preset == "automatic" else preset
+        if target is None or target not in choices:
+            raise FanControlError("il profilo termico iniziale non è più disponibile")
+
+        # This privileged path is fixed and validated independently by the
+        # installed helper. No arbitrary sysfs pathname comes from the UI.
+        self._run_helper("profile", ({"profile": target},))
+        self._active_backend = "platform"
+        self.sleeper(1.1)
+        observed = self.current_platform_profile
+        if observed != target:
+            try:
+                self._restore_platform_profile()
+            except FanControlError as restore_error:
+                raise FanControlError(
+                    f"profilo richiesto {target}, osservato {observed or 'n.d.'}; "
+                    f"ripristino fallito: {restore_error}"
+                ) from restore_error
+            raise FanControlError(
+                f"il firmware non ha mantenuto {target} (letto {observed or 'n.d.'}); "
+                "profilo iniziale ripristinato"
+            )
+
+        self.current_preset = preset
+        if preset == "automatic":
+            self._active_backend = None
+        self.last_feedback = (
+            f"Profilo firmware confermato: {target}. Questo cambia la politica "
+            "termica, non garantisce un numero preciso di RPM."
+        )
+
+    def _restore_platform_profile(self) -> None:
+        target = self._baseline_profile
+        if target is None or target not in self.platform_profile_choices:
+            raise FanControlError("impossibile ripristinare il profilo termico iniziale")
+        self._run_helper("profile", ({"profile": target},))
+        if self.current_platform_profile != target:
+            raise FanControlError(
+                "il firmware non ha confermato il ripristino del profilo iniziale"
+            )
+        self._active_backend = None
+        self.current_preset = "automatic"
+        self.last_feedback = f"Profilo termico iniziale ripristinato: {target}."
+
     def restore_original(self) -> None:
+        if self._active_backend == "platform":
+            self._restore_platform_profile()
+            return
         if self.current_preset == "automatic":
             return
         self.refresh()
@@ -358,6 +470,7 @@ class FanManager:
             return
         self._run_helper("restore", payload)
         self.current_preset = "automatic"
+        self._active_backend = None
         self.last_feedback = "Stato precedente ripristinato."
         self.refresh()
 
