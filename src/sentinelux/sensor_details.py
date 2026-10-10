@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from .metrics import TemperatureReading
-from .presentation import format_temperature, sensor_display_name
+from .presentation import (
+    format_temperature,
+    sensor_count_summary,
+    sensor_detail_names,
+)
 
 
 class SensorDetailsWindow:
@@ -62,13 +66,16 @@ class SensorDetailsWindow:
             self.signature = signature
             self.listbox.show_all()
 
-        self.summary_label.set_text(f"Sensori CPU · {len(readings)}")
-        for label, reading in zip(self.value_labels, readings):
+        self.summary_label.set_text(sensor_count_summary(readings))
+        for label, reading, display_name in zip(
+            self.value_labels, readings, sensor_detail_names(readings)
+        ):
             label.set_text(
-                f"{sensor_display_name(reading.label)} · "
-                f"{format_temperature(reading.value_c)}"
+                f"{display_name} · {format_temperature(reading.value_c)}"
             )
-            label.set_tooltip_text(f"Sorgente: {reading.source}")
+            label.set_tooltip_text(
+                f"Etichetta Linux: {reading.label} · Sorgente: {reading.source}"
+            )
 
     def present(self) -> None:
         self.window.show_all()
