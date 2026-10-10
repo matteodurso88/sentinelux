@@ -9,7 +9,7 @@ from typing import Any
 from . import __version__
 from .alerts import AlertEvent, AlertKind, ThermalAlertController, ThermalState
 from .config import AppConfig
-from .fans import FanControlError, FanManager, format_fan_channel
+from .fans import FanManager, format_fan_channel
 from .metrics import (
     SystemMetrics,
     TemperatureReading,
@@ -477,7 +477,7 @@ class SentineluxApplication:
         self.config = config
         self.alerts = self._new_alert_controller(config)
         self.protection = self._new_protection_controller(config)
-        self.fans = FanManager()
+        # Keep the same read-only manager shared with the Preferences window.
         self._sync_notification_controls()
         if self.running:
             self._schedule_refresh()
@@ -491,10 +491,6 @@ class SentineluxApplication:
             self.pause_item.set_active(False)
 
     def _quit(self, *_: Any) -> None:
-        try:
-            self.fans.restore_original()
-        except FanControlError:
-            LOGGER.exception("cannot restore original fan state during exit")
         self.Gtk.main_quit()
 
     def _schedule_refresh(self) -> None:
