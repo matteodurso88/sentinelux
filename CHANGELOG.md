@@ -2,6 +2,19 @@
 
 All notable changes to Sentinelux will be documented in this file.
 
+## [Next] - Unreleased
+
+### Fan-control fixes
+
+- Preserve the session-scoped fan manager across Preferences saves so
+  normal shutdown can still restore the original PWM state.
+- Verify PWM and manual mode readback after applying a preset; attempt
+  rollback if the driver ignores either value or RPM falls to zero.
+- Show inconclusive RPM feedback explicitly instead of claiming the fan
+  physically changed speed.
+- Warn when `dell_smm` may be overridden by BIOS/firmware.
+- Add a strictly read-only fan capability diagnostic for local verification.
+
 ## [0.0.5] - Unreleased
 
 ### Documentation
