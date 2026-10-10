@@ -5,10 +5,13 @@ import unittest
 from sentinelux.alerts import ThermalState
 from sentinelux.metrics import TemperatureReading
 from sentinelux.presentation import (
+    count_core_sensors,
     format_memory_summary,
     format_percentage,
     format_temperature,
     primary_cpu_sensor,
+    sensor_count_summary,
+    sensor_detail_names,
     sensor_display_name,
     thermal_state_presentation,
 )
@@ -50,6 +53,36 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(primary_cpu_sensor(readings), readings[1])
         self.assertIsNone(primary_cpu_sensor(readings[:1]))
         self.assertIsNone(primary_cpu_sensor(()))
+
+    def test_core_count_excludes_package_and_sorts_sparse_hwmon_ids(self) -> None:
+        readings = (
+            TemperatureReading(52.0, "coretemp", "Package id 0"),
+            TemperatureReading(42.0, "coretemp", "Core 12"),
+            TemperatureReading(40.0, "coretemp", "Core 0"),
+            TemperatureReading(41.0, "coretemp", "Core 4"),
+        )
+        self.assertEqual(count_core_sensors(readings), 3)
+        self.assertEqual(
+            sensor_count_summary(readings),
+            "3 core monitorati · 4 sensori CPU",
+        )
+        self.assertEqual(
+            sensor_detail_names(readings),
+            ("CPU Package 0", "Core 3", "Core 1", "Core 2"),
+        )
+
+    def test_non_core_labels_are_never_counted_as_cores(self) -> None:
+        readings = (
+            TemperatureReading(55.0, "k10temp", "Tctl"),
+            TemperatureReading(54.0, "k10temp", "Tdie"),
+            TemperatureReading(52.0, "k10temp", "CPU 0"),
+        )
+        self.assertEqual(count_core_sensors(readings), 0)
+        self.assertEqual(sensor_count_summary(readings), "Sensori CPU · 3")
+        self.assertEqual(
+            sensor_detail_names(readings),
+            ("CPU Tctl", "CPU Tdie", "CPU 0"),
+        )
 
     def test_exposes_state_label_and_colour(self) -> None:
         label, colour = thermal_state_presentation(ThermalState.CRITICAL)
