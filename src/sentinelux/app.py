@@ -453,7 +453,8 @@ class SentineluxApplication:
         self.config = config
         self.alerts = self._new_alert_controller(config)
         self.protection = self._new_protection_controller(config)
-        self.fans = FanManager()
+        # Keep the session-scoped fan manager: replacing it loses the PWM
+        # baseline and disconnects the Preferences window from tray cleanup.
         self._sync_notification_controls()
         if self.running:
             self._schedule_refresh()
