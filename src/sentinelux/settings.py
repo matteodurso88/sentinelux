@@ -307,7 +307,7 @@ class SettingsWindow:
         root.set_border_width(18)
 
         title = self.Gtk.Label()
-        title.set_markup("<b>Ventole e controllo PWM</b>")
+        title.set_markup("<b>Ventole e profili termici</b>")
         title.set_xalign(0)
         root.pack_start(title, False, False, 0)
 
@@ -337,8 +337,7 @@ class SettingsWindow:
         preset_label.set_xalign(0)
         preset_row.pack_start(preset_label, True, True, 0)
         self.fan_preset_combo = self.Gtk.ComboBoxText()
-        for preset, label in PRESET_LABELS.items():
-            self.fan_preset_combo.append(preset, label)
+        self._fan_preset_options: tuple[tuple[str, str], ...] = ()
         self.fan_preset_combo.set_active_id("automatic")
         preset_row.pack_end(self.fan_preset_combo, False, False, 0)
         root.pack_start(preset_row, False, False, 0)
@@ -358,10 +357,12 @@ class SettingsWindow:
 
         note = self.Gtk.Label(
             label=(
-                "Il controllo è temporaneo e richiede autorizzazione amministrativa "
-                "tramite Polkit. Sentinelux usa solo canali hwmon con tachimetro RPM, "
-                "PWM e modalità leggibile; non consente lo spegnimento delle ventole. "
-                "Alla chiusura ripristina i valori rilevati all'avvio."
+                "Controllo temporaneo autorizzato con Polkit. Quando il kernel "
+                "espone platform_profile vengono usati i profili termici nativi "
+                "del firmware (non percentuali RPM). Solo in assenza del backend "
+                "nativo e su hardware compatibile si usa il PWM generico. "
+                "Il profilo iniziale viene ripristinato alla chiusura."
+
             )
         )
         note.set_xalign(0)
@@ -535,9 +536,36 @@ class SettingsWindow:
                 row.set_selectable(True)
                 self.fan_channels_box.pack_start(row, False, False, 0)
 
+        options = self.fan_manager.preset_options
+        if options != self._fan_preset_options:
+            selected = self.fan_preset_combo.get_active_id()
+            self.fan_preset_combo.remove_all()
+            for preset, label in options:
+                self.fan_preset_combo.append(preset, label)
+            valid = {preset for preset, _label in options}
+            active = (
+                selected if selected in valid
+                else self.fan_manager.current_preset
+                if self.fan_manager.current_preset in valid
+                else "automatic"
+            )
+            self.fan_preset_combo.set_active_id(active)
+            self._fan_preset_options = options
+
         detected = len(channels)
         controllable = len(self.fan_manager.controllable_channels)
-        if controllable and self.fan_manager.helper_ready:
+        if self.fan_manager.control_backend == "platform":
+            active_profile = self.fan_manager.current_platform_profile or "n.d."
+            installed = "pronto" if self.fan_manager.helper_ready else "non installato"
+            status = (
+                "Backend nativo ACPI platform_profile. "
+                f"Profilo attivo: {active_profile}. "
+                f"Helper privilegiato: {installed}. "
+                f"Canali hwmon esposti: {detected} (possibili duplicati)."
+            )
+            if not self.fan_manager.helper_ready:
+                status += " Esegui scripts/install-fan-helper.sh dal repository."
+        elif controllable and self.fan_manager.helper_ready:
             status = (
                 f"Rilevate {detected} ventole; {controllable} controllabili. "
                 f"Preset attuale: {PRESET_LABELS[self.fan_manager.current_preset]}."
@@ -555,10 +583,13 @@ class SettingsWindow:
             )
         else:
             status = "Nessun canale ventola disponibile."
-        if any(channel.chip.lower() == "dell_smm" for channel in channels):
+        if (
+            self.fan_manager.control_backend != "platform"
+            and any(channel.chip.lower() == "dell_smm" for channel in channels)
+        ):
             status += (
-                "\nDriver Dell SMM: il BIOS può ignorare o sovrascrivere "
-                "le richieste PWM, anche quando un comando è accettato."
+                "\nDriver Dell SMM: PWM manuale disabilitato per evitare "
+                "comandi inefficaci o non supportati."
             )
         if self.fan_manager.last_feedback:
             status += "\n" + self.fan_manager.last_feedback
