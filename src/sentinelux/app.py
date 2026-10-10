@@ -142,6 +142,7 @@ class SentineluxApplication:
         self.menu.append(self.Gtk.SeparatorMenuItem())
         self.max_temperature_item = self._info_item("🌡 CPU Max · —")
         self.package_temperature_item = self._info_item("🌡 CPU Package · —")
+        self.package_temperature_item.set_no_show_all(True)
         self.menu.append(self.max_temperature_item)
         self.menu.append(self.package_temperature_item)
 
