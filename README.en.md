@@ -142,7 +142,26 @@ There is no zero-speed preset. Sentinelux checks PWM and control-mode readback, 
 ./scripts/uninstall-fan-helper.sh
 ```
 
-## Data, network and privileges
+### Read-only fan diagnostics (Dell and other laptops)
+
+RPM telemetry does not imply that firmware permits manual fan control.
+On some Dell models `dell_smm` exposes part of the fan interface while the
+BIOS may override manual PWM requests. Percentages on generic presets are
+requested PWM values, not guaranteed physical RPM percentages.
+
+Before attempting further manual control, run this **read-only** diagnostic
+from the repository root:
+
+```bash
+PYTHONPATH=src python3 scripts/diagnose-fans.py
+```
+
+If already installed on a Dell, `smbios-thermal-ctl --get-thermal-info`
+may reveal manufacturer-supported firmware thermal profiles. These modes
+are not equivalent to direct PWM duty-cycle presets and require a separate
+hardware capability check before integration.
+
+
 
 During normal monitoring, Sentinelux reads local metrics through `psutil`, `/sys/class/hwmon` and `/sys/class/thermal`. The runtime contains no telemetry, cloud synchronization or network calls.
 
