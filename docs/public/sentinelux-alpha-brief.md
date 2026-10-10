@@ -1,6 +1,6 @@
 # Sentinelux — first public alpha product brief
 
-**Status:** candidate `v0.1.0-alpha.1`, not yet published.
+**Status:** [public GitHub alpha prerelease `v0.1.0-alpha.1`](https://github.com/matteodurso88/sentinelux/releases/tag/v0.1.0-alpha.1), published 2026-10-10.
 **Python version:** `0.1.0a1`. **License:** GPL-3.0-or-later.
 **Repository:** https://github.com/matteodurso88/sentinelux
 
@@ -24,7 +24,7 @@ sensori esposti da driver e firmware. È un software alpha: le protezioni
 hardware rimangono essenziali.
 
 **Installazione:** da sorgente, con script per distribuzioni Debian-like;
-la release GitHub e il tag saranno pubblicati solo dopo i test locali.
+la prima alpha è pubblicata come release sorgente su GitHub. L’installazione su Dell e la versione `0.1.0a1` sono confermate; il log completo della suite automatica non è disponibile.
 
 ## English
 
@@ -43,8 +43,7 @@ helper, no `.deb` package, historical dashboards, auto-updater or universal
 hardware compatibility. Sensors depend on the kernel and firmware. This is
 alpha software, not a substitute for hardware/firmware thermal protection.
 
-**Installation:** source-based for Debian-family Linux desktops; the tag
-and GitHub prerelease are pending completion of the local release gate.
+**Installation:** source-based for Debian-family Linux desktops; the GitHub tag and source-only prerelease are published. Dell installation and version were verified; the full automated local test log has not been supplied.
 
 The technical release notes are in
 [docs/releases/v0.1.0-alpha.1.md](../releases/v0.1.0-alpha.1.md).
