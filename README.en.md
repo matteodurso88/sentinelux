@@ -9,7 +9,8 @@ Sentinelux is an open-source hardware monitor for Linux desktops. It keeps essen
 ## Available features
 
 - tray icon with the hottest temperature or CPU-load label;
-- flat menu showing CPU, RAM, swap, package/core sensors and fans;
+- compact tray menu showing CPU, RAM, swap, hottest CPU temperature, optional package sensor and fans;
+- scrollable GTK window with live detailed CPU temperature sensor readings;
 - RAM accounting based on available memory, using a coherent pattern:
   `▣ RAM · 61.4% · 2.3 GiB / 3.8 GiB · disp. 1.4 GiB`;
 - selection of the most plausible CPU sensor group, with the hottest reading driving the thermal policy;
