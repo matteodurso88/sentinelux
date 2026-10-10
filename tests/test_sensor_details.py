@@ -13,6 +13,7 @@ class FakeWidget:
         self.children = []
         self.text = label
         self.visible = False
+        self.tooltip = None
 
     def __getattr__(self, name):
         if name.startswith("set_") or name in {"connect", "present"}:
@@ -39,6 +40,9 @@ class FakeWidget:
 
     def set_text(self, value):
         self.text = value
+
+    def set_tooltip_text(self, text):
+        self.tooltip = text
 
 
 class FakeGtk:
@@ -72,7 +76,7 @@ class SensorDetailsTests(unittest.TestCase):
             details.update(self.readings(count))
             self.assertEqual(len(details.value_labels), count)
             self.assertEqual(len(details.listbox.get_children()), count)
-            self.assertEqual(details.summary_label.text, f"Sensori CPU · {count}")
+            self.assertEqual(details.summary_label.text, f"{count} core monitorati · {count} sensori CPU")
 
     def test_refresh_changes_values_without_rebuilding_rows(self) -> None:
         details = SensorDetailsWindow(FakeGtk)
@@ -86,6 +90,27 @@ class SensorDetailsTests(unittest.TestCase):
         self.assertEqual(details.value_labels, before)
         self.assertIn("60.0 °C", details.value_labels[0].text)
         self.assertIn("75.0 °C", details.value_labels[-1].text)
+
+    def test_package_does_not_count_as_core_and_hardware_ids_stay_in_tooltips(self) -> None:
+        details = SensorDetailsWindow(FakeGtk)
+        readings = (
+            TemperatureReading(61.0, "coretemp", "Package id 0"),
+            *(
+                TemperatureReading(40.0 + i, "coretemp", f"Core {i * 4}")
+                for i in range(14)
+            ),
+        )
+        details.update(readings)
+        self.assertEqual(details.summary_label.text, "14 core monitorati · 15 sensori CPU")
+        self.assertEqual(len(details.listbox.get_children()), 15)
+        self.assertEqual(details.value_labels[0].text, "CPU Package 0 · 61.0 °C")
+        self.assertEqual(details.value_labels[1].text, "Core 1 · 40.0 °C")
+        self.assertEqual(details.value_labels[2].text, "Core 2 · 41.0 °C")
+        self.assertEqual(details.value_labels[-1].text, "Core 14 · 53.0 °C")
+        self.assertEqual(
+            details.value_labels[-1].tooltip,
+            "Etichetta Linux: Core 52 · Sorgente: coretemp",
+        )
 
     def test_missing_sensors_then_reappear(self) -> None:
         details = SensorDetailsWindow(FakeGtk)
