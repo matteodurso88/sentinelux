@@ -73,12 +73,11 @@ Read-only capability check (no `sudo`, no sysfs writes):
 PYTHONPATH=src python3 scripts/diagnose-fans.py
 ```
 
-If the manufacturer thermal CLI is already present, inspect its
-supported modes without writing a profile:
-
-```bash
-smbios-thermal-ctl --get-thermal-info
-```
+The helper's native profile operation writes only the allowlisted values
+`quiet`, `balanced`, `performance`, or `cool` to the fixed kernel
+`platform_profile` endpoint. It rejects unsupported or arbitrary strings.
+A local gate must verify the installed helper, readback and actual device
+behavior before integration.
 
 Apply/test PWM presets on actual hardware only with verified reversible
 control and observe RPM, CPU temperature, and driver mode. Never bypass
