@@ -9,7 +9,7 @@ from typing import Any
 from . import __version__
 from .alerts import AlertEvent, AlertKind, ThermalAlertController, ThermalState
 from .config import AppConfig
-from .fans import FanControlError, FanManager, format_fan_channel
+from .fans import FanManager, format_fan_channel
 from .metrics import (
     SystemMetrics,
     TemperatureReading,
@@ -17,9 +17,11 @@ from .metrics import (
     human_bytes,
 )
 from .presentation import (
+    count_core_sensors,
     format_memory_summary,
     format_percentage,
     format_temperature,
+    primary_cpu_sensor,
     sensor_display_name,
     thermal_state_presentation,
 )
@@ -29,6 +31,7 @@ from .protection import (
     ThermalProtectionController,
     request_sleep_action,
 )
+from .sensor_details import SensorDetailsWindow
 from .settings import SettingsWindow
 
 LOGGER = logging.getLogger(__name__)
@@ -120,8 +123,8 @@ class SentineluxApplication:
         )
 
     def _build_menu(self) -> None:
-        self.sensor_signature: tuple[tuple[str, str], ...] | None = None
-        self.sensor_rows: list[Any] = []
+        self.temperature_readings: tuple[TemperatureReading, ...] = ()
+        self.sensor_details_window: SensorDetailsWindow | None = None
         self.fan_signature: tuple[str, ...] | None = None
         self.fan_rows: list[Any] = []
 
@@ -138,8 +141,18 @@ class SentineluxApplication:
             self.menu.append(item)
 
         self.menu.append(self.Gtk.SeparatorMenuItem())
-        self.sensor_anchor = self.Gtk.SeparatorMenuItem()
-        self.menu.append(self.sensor_anchor)
+        self.max_temperature_item = self._info_item("🌡 CPU Max · —")
+        self.package_temperature_item = self._info_item("🌡 CPU Package · —")
+        self.package_temperature_item.set_no_show_all(True)
+        self.menu.append(self.max_temperature_item)
+        self.menu.append(self.package_temperature_item)
+
+        self.sensor_details_item = self.Gtk.MenuItem(
+            label="▸ Dettaglio sensori termici…"
+        )
+        self.sensor_details_item.connect("activate", self._open_sensor_details)
+        self.menu.append(self.sensor_details_item)
+
         self.fan_anchor = self.Gtk.SeparatorMenuItem()
         self.menu.append(self.fan_anchor)
 
@@ -161,7 +174,7 @@ class SentineluxApplication:
         quit_item.connect("activate", self._quit)
         self.menu.append(quit_item)
 
-        self._update_sensor_rows(())
+        self._update_temperature_rows(())
         self._update_fan_rows(())
         self._sync_notification_controls()
 
@@ -290,7 +303,7 @@ class SentineluxApplication:
             f"{human_bytes(metrics.swap_total_bytes)}"
         )
 
-        self._update_sensor_rows(metrics.temperature_readings)
+        self._update_temperature_rows(metrics.temperature_readings)
         self._update_fan_rows(self.fans.refresh())
         self._set_indicator_label(metrics)
         self._set_indicator_icon()
@@ -372,36 +385,47 @@ class SentineluxApplication:
         except Exception:
             LOGGER.exception("thermal protection notification failed")
 
-    def _update_sensor_rows(
+    def _update_temperature_rows(
         self,
         readings: tuple[TemperatureReading, ...],
     ) -> None:
-        signature = tuple((reading.source, reading.label) for reading in readings)
-        if signature != self.sensor_signature:
-            for item in self.sensor_rows:
-                self.menu.remove(item)
-            self.sensor_rows.clear()
+        """Keep the tray compact while retaining all readings for diagnostics."""
+        self.temperature_readings = readings
+        hottest = max(readings, key=lambda reading: reading.value_c) if readings else None
+        self.max_temperature_item.set_label(
+            "🌡 CPU Max · "
+            + format_temperature(hottest.value_c if hottest else None)
+        )
 
-            anchor_index = self.menu.get_children().index(self.sensor_anchor)
-            row_count = len(readings) if readings else 1
-            for offset in range(row_count):
-                item = self._info_item("🌡 Temperatura CPU · non disponibile")
-                self.menu.insert(item, anchor_index + offset)
-                self.sensor_rows.append(item)
-
-            self.sensor_signature = signature
-            self.menu.show_all()
-
-        if readings:
-            for item, reading in zip(self.sensor_rows, readings):
-                item.set_label(
-                    f"🌡 {sensor_display_name(reading.label)} · "
-                    f"{format_temperature(reading.value_c)}"
-                )
-                item.set_tooltip_text(f"Sorgente: {reading.source}")
+        package = primary_cpu_sensor(readings)
+        if package is not None:
+            self.package_temperature_item.set_label(
+                f"🌡 {sensor_display_name(package.label)} · "
+                f"{format_temperature(package.value_c)}"
+            )
+            self.package_temperature_item.show()
         else:
-            self.sensor_rows[0].set_label("🌡 Temperatura CPU · non disponibile")
-            self.sensor_rows[0].set_tooltip_text(None)
+            self.package_temperature_item.hide()
+
+        core_count = count_core_sensors(readings)
+        count_label = (
+            f"{core_count} core"
+            if core_count
+            else f"{len(readings)} sensori"
+        )
+        self.sensor_details_item.set_label(
+            f"▸ Dettaglio sensori termici ({count_label})…"
+        )
+        self.sensor_details_item.set_sensitive(bool(readings))
+
+        if self.sensor_details_window is not None:
+            self.sensor_details_window.update(readings)
+
+    def _open_sensor_details(self, *_: Any) -> None:
+        if self.sensor_details_window is None:
+            self.sensor_details_window = SensorDetailsWindow(self.Gtk)
+        self.sensor_details_window.update(self.temperature_readings)
+        self.sensor_details_window.present()
 
     def _update_fan_rows(self, channels: tuple[Any, ...]) -> None:
         signature = tuple(channel.identifier for channel in channels)
@@ -453,7 +477,7 @@ class SentineluxApplication:
         self.config = config
         self.alerts = self._new_alert_controller(config)
         self.protection = self._new_protection_controller(config)
-        self.fans = FanManager()
+        # Keep the same read-only manager shared with the Preferences window.
         self._sync_notification_controls()
         if self.running:
             self._schedule_refresh()
@@ -467,10 +491,6 @@ class SentineluxApplication:
             self.pause_item.set_active(False)
 
     def _quit(self, *_: Any) -> None:
-        try:
-            self.fans.restore_original()
-        except FanControlError:
-            LOGGER.exception("cannot restore original fan state during exit")
         self.Gtk.main_quit()
 
     def _schedule_refresh(self) -> None:
@@ -487,10 +507,6 @@ class SentineluxApplication:
             self.Gtk.main()
         finally:
             self.running = False
-            try:
-                self.fans.restore_original()
-            except FanControlError:
-                LOGGER.exception("cannot restore original fan state")
             if self.runtime_notifications_allowed:
                 self.Notify.uninit()
         return 0

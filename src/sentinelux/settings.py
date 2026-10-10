@@ -11,12 +11,7 @@ from .autostart import (
     set_autostart_enabled,
 )
 from .config import AppConfig, save_config
-from .fans import (
-    PRESET_LABELS,
-    FanControlError,
-    FanManager,
-    format_fan_channel,
-)
+from .fans import FanManager, format_fan_channel
 from .protection import (
     format_kernel_trip_summary,
     read_kernel_critical_trips,
@@ -303,11 +298,12 @@ class SettingsWindow:
         return box
 
     def _build_fans_page(self) -> Any:
+        """Expose detected channels without any manual fan-control widgets."""
         root = self.Gtk.Box(orientation=self.Gtk.Orientation.VERTICAL, spacing=12)
         root.set_border_width(18)
 
         title = self.Gtk.Label()
-        title.set_markup("<b>Ventole e controllo PWM</b>")
+        title.set_markup("<b>Ventole · monitoraggio in sola lettura</b>")
         title.set_xalign(0)
         root.pack_start(title, False, False, 0)
 
@@ -329,39 +325,16 @@ class SettingsWindow:
         scroller.add(self.fan_channels_box)
         root.pack_start(scroller, True, True, 0)
 
-        preset_row = self.Gtk.Box(
-            orientation=self.Gtk.Orientation.HORIZONTAL,
-            spacing=10,
-        )
-        preset_label = self.Gtk.Label(label="Preset per questa sessione")
-        preset_label.set_xalign(0)
-        preset_row.pack_start(preset_label, True, True, 0)
-        self.fan_preset_combo = self.Gtk.ComboBoxText()
-        for preset, label in PRESET_LABELS.items():
-            self.fan_preset_combo.append(preset, label)
-        self.fan_preset_combo.set_active_id("automatic")
-        preset_row.pack_end(self.fan_preset_combo, False, False, 0)
-        root.pack_start(preset_row, False, False, 0)
-
-        buttons = self.Gtk.Box(
-            orientation=self.Gtk.Orientation.HORIZONTAL,
-            spacing=8,
-        )
         refresh_button = self.Gtk.Button(label="Rileva di nuovo")
         refresh_button.connect("clicked", self._refresh_fan_display)
-        buttons.pack_start(refresh_button, False, False, 0)
-        self.fan_apply_button = self.Gtk.Button(label="Applica preset")
-        self.fan_apply_button.connect("clicked", self._apply_fan_preset)
-        self.fan_apply_button.get_style_context().add_class("suggested-action")
-        buttons.pack_end(self.fan_apply_button, False, False, 0)
-        root.pack_start(buttons, False, False, 0)
+        root.pack_start(refresh_button, False, False, 0)
 
         note = self.Gtk.Label(
             label=(
-                "Il controllo è temporaneo e richiede autorizzazione amministrativa "
-                "tramite Polkit. Sentinelux usa solo canali hwmon con tachimetro RPM, "
-                "PWM e modalità leggibile; non consente lo spegnimento delle ventole. "
-                "Alla chiusura ripristina i valori rilevati all'avvio."
+                "Questa versione non controlla la velocità delle ventole. "
+                "I valori RPM, PWM e modalità sono letture del driver, non "
+                "garantiscono che il firmware consenta un controllo manuale. "
+                "Alcuni driver possono descrivere la stessa ventola fisica."
             )
         )
         note.set_xalign(0)
@@ -535,42 +508,17 @@ class SettingsWindow:
                 row.set_selectable(True)
                 self.fan_channels_box.pack_start(row, False, False, 0)
 
-        detected = len(channels)
-        controllable = len(self.fan_manager.controllable_channels)
-        if controllable and self.fan_manager.helper_ready:
+        if channels:
             status = (
-                f"Rilevate {detected} ventole; {controllable} controllabili. "
-                f"Preset attuale: {PRESET_LABELS[self.fan_manager.current_preset]}."
-            )
-        elif controllable:
-            status = (
-                f"Rilevate {detected} ventole e {controllable} canali PWM, ma il "
-                "helper privilegiato non è installato. Esegui "
-                "scripts/install-fan-helper.sh dal repository."
-            )
-        elif detected:
-            status = (
-                f"Rilevate {detected} ventole in sola lettura: il driver non espone "
-                "insieme feedback RPM, PWM e modalità di controllo leggibile."
+                f"Canali hwmon rilevati: {len(channels)}. "
+                "Valori in sola lettura; più canali possono riferirsi "
+                "alla stessa ventola fisica. I preset non sono disponibili "
+                "in questa prerelease."
             )
         else:
-            status = "Nessun canale ventola disponibile."
+            status = "Nessun canale ventola disponibile. Controllo PWM non incluso."
         self.fan_status_label.set_text(status)
-        self.fan_apply_button.set_sensitive(self.fan_manager.control_available)
         self.fan_channels_box.show_all()
-
-    def _apply_fan_preset(self, *_: Any) -> None:
-        preset = self.fan_preset_combo.get_active_id() or "automatic"
-        try:
-            self.fan_manager.apply_preset(preset)
-        except FanControlError as exc:
-            self._show_error(
-                "Impossibile applicare il preset ventole",
-                str(exc),
-            )
-            self._refresh_fan_display()
-            return
-        self._refresh_fan_display()
 
     def _sync_autostart_status(self, *_: Any) -> None:
         if self.autostart_switch.get_active():

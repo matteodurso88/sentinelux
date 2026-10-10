@@ -4,12 +4,13 @@
 
 Sentinelux è un monitor hardware open source per desktop Linux, progettato per offrire informazioni essenziali direttamente nella tray: carico CPU, memoria RAM, swap, temperature CPU e ventole quando il kernel le espone. L’obiettivo attuale è fornire visibilità immediata e alert termici configurabili senza trasformare l’applicazione in una dashboard invasiva.
 
-> **Stato:** versione `0.0.5`, pre-alpha, non ancora pubblicata come release o pacchetto `.deb`.
+> **Stato:** candidato `v0.1.0-alpha.1` (`0.1.0a1` per Python), **alpha non ancora pubblicata**. Nessun pacchetto `.deb` disponibile.
 
 ## Funzioni disponibili
 
 - tray icon con etichetta della temperatura più alta o del carico CPU;
-- menu piatto con CPU, RAM, swap, sensori package/core e ventole;
+- menu tray compatto con CPU, RAM, swap, temperatura massima CPU, sensore package quando disponibile e ventole;
+- finestra GTK scorrevole con il dettaglio completo e aggiornato dei sensori termici CPU; conteggio core separato dal Package e numerazione progressiva, con etichette hardware originali nei tooltip;
 - RAM calcolata tramite memoria disponibile, con pattern coerente:
   `▣ RAM · 61.4% · 2.3 GiB / 3.8 GiB · disp. 1.4 GiB`;
 - selezione del gruppo di sensori CPU più plausibile e uso del valore più caldo per la policy termica;
@@ -19,7 +20,7 @@ Sentinelux è un monitor hardware open source per desktop Linux, progettato per 
 - avvio automatico XDG attivabile dalle preferenze;
 - protezione termica preventiva opzionale tramite ibernazione o sospensione;
 - visualizzazione in sola lettura del trip point `critical` più basso esposto dal kernel;
-- rilevamento ventole tramite `hwmon`, con controllo PWM solo quando il canale è verificabile;
+- monitoraggio delle ventole tramite `hwmon` in sola lettura (RPM, PWM e modalità se esposti); nessun controllo manuale;
 - snapshot JSON da riga di comando con `--once`;
 - installazione e disinstallazione per singolo utente.
 
@@ -33,7 +34,6 @@ Sentinelux è stato costruito per desktop Linux della famiglia Debian e richiede
 - Ayatana AppIndicator oppure AppIndicator legacy;
 - libnotify;
 - `systemd-logind`, `busctl` e `systemctl` per le azioni preventive;
-- `pkexec` soltanto per eventuali preset PWM;
 - una sessione desktop con tray AppIndicator compatibile.
 
 La validazione locale disponibile riguarda un ambiente Xfce/X11. Distribuzione e versione esatte, Wayland e architetture CPU diverse non sono ancora formalmente verificate.
@@ -92,7 +92,7 @@ La finestra **Preferenze** contiene le schede:
 - **Monitoraggio** — intervallo, soglia di attenzione, soglia critica, isteresi e promemoria;
 - **Alert** — interruttore generale e tipi di notifica;
 - **Protezione** — azione preventiva, soglia, persistenza, isteresi e trip point kernel in sola lettura;
-- **Ventole** — telemetria `hwmon` e preset PWM quando supportati;
+- **Ventole** — telemetria `hwmon` in sola lettura, senza preset manuali;
 - **Avvio** — autostart XDG.
 
 La configurazione viene salvata atomicamente in:
@@ -112,33 +112,11 @@ Azioni disponibili:
 
 Sentinelux interroga `systemd-logind` per verificare se l’azione è disponibile e autorizzata. Non modifica le soglie del kernel, del BIOS, del firmware o dell’hardware. La soglia `critical` mostrata nella GUI è una lettura di `/sys/class/thermal` e può non rappresentare tutte le protezioni presenti nella macchina.
 
-## Ventole e preset PWM
+## Ventole: telemetria in sola lettura
 
-Sentinelux legge i canali esposti in `/sys/class/hwmon`. La pagina resta in sola lettura quando il sistema non espone contemporaneamente:
+Sentinelux legge da `/sys/class/hwmon` i valori RPM e, se presenti, PWM e modalità del driver. **Non modifica i valori PWM, la velocità delle ventole o i profili termici del firmware.** La presenza di attributi PWM leggibili non garantisce che il firmware consenta il controllo manuale. Su alcuni Dell (`dell_ddv` e `dell_smm`) più canali `hwmon` possono descrivere una sola ventola fisica.
 
-- tachimetro `fanN_input`;
-- valore `pwmN`;
-- modalità `pwmN_enable`.
-
-Per autorizzare i preset su hardware compatibile:
-
-```bash
-./scripts/install-fan-helper.sh
-```
-
-Preset di sessione:
-
-- Automatico;
-- Silenzioso · 55%;
-- Bilanciato · 70%;
-- Prestazioni · 85%;
-- Massimo · 100%.
-
-Non esiste un preset a velocità zero. Sentinelux verifica il feedback RPM dopo una modifica manuale e tenta di ripristinare lo stato iniziale alla chiusura normale. I preset non sono persistenti e non vengono applicati all’accesso. Per rimuovere l’helper:
-
-```bash
-./scripts/uninstall-fan-helper.sh
-```
+I preset sperimentali non fanno parte di `v0.1.0-alpha.1`: l’helper privilegiato e lo script di installazione sono esclusi. Se ne avevi installato uno da una precedente versione sperimentale, puoi rimuoverlo volontariamente con `./scripts/uninstall-fan-helper.sh`.
 
 ## Dati, rete e privilegi
 
@@ -147,8 +125,6 @@ Durante il normale monitoraggio Sentinelux legge metriche locali tramite `psutil
 I privilegi amministrativi non sono richiesti per tray, metriche, configurazione o installazione utente. Sono richiesti soltanto per:
 
 - installare dipendenze di sistema;
-- installare o rimuovere l’helper ventole;
-- applicare preset PWM tramite `pkexec`, quando supportati;
 - eseguire sospensione o ibernazione secondo le policy di sistema.
 
 ## Test
@@ -159,7 +135,7 @@ Esecuzione locale:
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-Stato verificato il 22 luglio 2026: **42 test unitari superati**. Non è ancora presente una pipeline CI/CD nel repository.
+Ultimo gate storico: **42 test superati il 22 luglio 2026** su una build precedente. La candidata `v0.1.0-alpha.1` richiede nuovi test e smoke test locali prima della release.
 
 ## Limitazioni attuali
 
@@ -189,7 +165,7 @@ Per disinstallare:
 ./scripts/uninstall-user.sh
 ```
 
-Lo script conserva intenzionalmente `~/.config/sentinelux`. L’helper ventole, se installato, va rimosso separatamente.
+Lo script conserva intenzionalmente `~/.config/sentinelux`. Un eventuale helper ventole installato da una precedente branch sperimentale va rimosso separatamente con `./scripts/uninstall-fan-helper.sh`.
 
 ## Contribuire
 

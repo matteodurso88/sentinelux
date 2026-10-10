@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from typing import Sequence
 
 from .alerts import ThermalState
-from .metrics import human_bytes
+from .metrics import TemperatureReading, human_bytes
 
 
 _STATE_PRESENTATION = {
@@ -76,3 +77,71 @@ def thermal_state_presentation(state: ThermalState) -> tuple[str, str]:
     """Return the localized label and foreground colour for a thermal state."""
 
     return _STATE_PRESENTATION[state]
+
+
+def primary_cpu_sensor(
+    readings: Sequence[TemperatureReading],
+) -> TemperatureReading | None:
+    """Choose the best package-level sensor to show in the compact tray.
+
+    Core-only systems intentionally have no second summary row. The full
+    sensor collection remains available for the detail window and thermal policy.
+    """
+    def priority(reading: TemperatureReading) -> int:
+        label = " ".join(reading.label.lower().split())
+        if re.fullmatch(r"(?:cpu\s+)?package(?:\s+id)?\s*\d*", label):
+            return 0
+        if re.fullmatch(r"physical\s+id\s*\d+", label):
+            return 0
+        if label == "tctl":
+            return 1
+        if label == "tdie":
+            return 2
+        return 3
+
+    candidates = (reading for reading in readings if priority(reading) < 3)
+    return min(candidates, key=priority, default=None)
+
+
+def _hardware_core_id(label: str) -> int | None:
+    """Extract the Linux hwmon core ID, which need not be contiguous."""
+    match = re.fullmatch(r"core\s*(\d+)", " ".join((label or "").split()), re.IGNORECASE)
+    return int(match.group(1)) if match is not None else None
+
+
+def count_core_sensors(readings: Sequence[TemperatureReading]) -> int:
+    """Count only per-core temperature sensors, never package-level sensors."""
+    return sum(_hardware_core_id(reading.label) is not None for reading in readings)
+
+
+def sensor_detail_names(readings: Sequence[TemperatureReading]) -> tuple[str, ...]:
+    """Number core rows consecutively without changing the original hwmon data.
+
+    Ordinals follow hardware core-ID order; kernel IDs remain accessible via
+    the detail-row tooltip for diagnostics.
+    """
+    core_positions = sorted(
+        (
+            (index, core_id)
+            for index, reading in enumerate(readings)
+            if (core_id := _hardware_core_id(reading.label)) is not None
+        ),
+        key=lambda pair: (pair[1], pair[0]),
+    )
+    numbering = {
+        index: ordinal for ordinal, (index, _core_id) in enumerate(core_positions, 1)
+    }
+    return tuple(
+        f"Core {numbering[index]}"
+        if index in numbering
+        else sensor_display_name(reading.label)
+        for index, reading in enumerate(readings)
+    )
+
+
+def sensor_count_summary(readings: Sequence[TemperatureReading]) -> str:
+    """Distinguish core sensor count from total CPU temperature readings."""
+    cores = count_core_sensors(readings)
+    if cores:
+        return f"{cores} core monitorati · {len(readings)} sensori CPU"
+    return f"Sensori CPU · {len(readings)}"

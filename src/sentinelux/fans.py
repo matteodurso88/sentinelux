@@ -1,41 +1,19 @@
-"""Safe Linux hwmon fan discovery and session-scoped preset control."""
+"""Read-only Linux hwmon fan telemetry for the first public prerelease.
+
+Fan/pwm sysfs attributes are observable but do not establish that firmware
+permits user-space fan-speed control. This release never writes them.
+"""
 
 from __future__ import annotations
 
-import json
 import re
-import shutil
-import subprocess
-import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
-
-
-PRESET_PERCENTAGES: dict[str, int | None] = {
-    "automatic": None,
-    "quiet": 55,
-    "balanced": 70,
-    "performance": 85,
-    "maximum": 100,
-}
-
-PRESET_LABELS: dict[str, str] = {
-    "automatic": "Automatico",
-    "quiet": "Silenzioso · 55%",
-    "balanced": "Bilanciato · 70%",
-    "performance": "Prestazioni · 85%",
-    "maximum": "Massimo · 100%",
-}
-
-
-class FanControlError(RuntimeError):
-    """Raised when a fan preset cannot be applied safely."""
 
 
 @dataclass(frozen=True, slots=True)
 class FanChannel:
-    """One fan/PWM channel exported by a Linux hwmon device."""
+    """One hwmon fan channel; multiple channels may report one physical fan."""
 
     identifier: str
     chip: str
@@ -49,19 +27,6 @@ class FanChannel:
     enable_mode: int | None
 
     @property
-    def controllable(self) -> bool:
-        """Require tachometer feedback and readable PWM/mode state."""
-
-        return (
-            self.fan_input_path is not None
-            and self.pwm_path is not None
-            and self.enable_path is not None
-            and self.rpm is not None
-            and self.pwm_value is not None
-            and self.enable_mode is not None
-        )
-
-    @property
     def pwm_percent(self) -> float | None:
         if self.pwm_value is None:
             return None
@@ -72,16 +37,10 @@ class FanChannel:
         if self.enable_mode is None:
             return "modo n.d."
         if self.enable_mode == 1:
-            return "manuale"
+            return "manuale (driver)"
         if self.enable_mode == 0:
-            return "controllo disabilitato"
-        return "automatico"
-
-
-@dataclass(frozen=True, slots=True)
-class FanState:
-    pwm_value: int
-    enable_mode: int
+            return "controllo disabilitato (driver)"
+        return "automatico (driver)"
 
 
 def _read_text(path: Path) -> str | None:
@@ -119,7 +78,7 @@ def _channel_indices(directory: Path) -> tuple[int, ...]:
 def discover_fans(
     hwmon_root: Path = Path("/sys/class/hwmon"),
 ) -> tuple[FanChannel, ...]:
-    """Discover RPM and PWM channels exposed through the standard hwmon ABI."""
+    """Read hwmon fan telemetry; never open PWM or mode paths for writing."""
 
     channels: list[FanChannel] = []
     for directory in sorted(hwmon_root.glob("hwmon*"), key=lambda path: path.name):
@@ -131,12 +90,9 @@ def discover_fans(
             fan_input_path = fan_input if fan_input.exists() else None
             pwm_path = pwm if pwm.exists() else None
             enable_path = enable if enable.exists() else None
-            label = (
-                _read_text(directory / f"fan{index}_label")
-                or f"Ventola {index}"
-            )
             if fan_input_path is None and pwm_path is None:
                 continue
+            label = _read_text(directory / f"fan{index}_label") or f"Ventola {index}"
             channels.append(
                 FanChannel(
                     identifier=f"{directory.name}:fan{index}",
@@ -154,197 +110,29 @@ def discover_fans(
     return tuple(channels)
 
 
-def preset_pwm_value(preset: str) -> int | None:
-    if preset not in PRESET_PERCENTAGES:
-        raise ValueError(f"unknown fan preset: {preset}")
-    percentage = PRESET_PERCENTAGES[preset]
-    if percentage is None:
-        return None
-    return round(255 * percentage / 100)
-
-
 def format_fan_channel(channel: FanChannel) -> str:
     rpm = f"{channel.rpm} RPM" if channel.rpm is not None else "RPM n.d."
     if channel.pwm_percent is None:
         pwm = "PWM n.d."
     else:
-        pwm = f"PWM {channel.pwm_percent:.0f}%"
+        pwm = f"PWM {channel.pwm_percent:.0f}% (driver)"
     return f"{channel.label} · {rpm} · {pwm} · {channel.mode_label}"
 
 
 class FanManager:
-    """Apply conservative fan presets for the current Sentinelux session only."""
+    """Read-only live fan discovery; no privileged-control implementation."""
 
     def __init__(
-        self,
-        *,
-        hwmon_root: Path = Path("/sys/class/hwmon"),
-        runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-        sleeper: Callable[[float], None] = time.sleep,
-        pkexec_path: str | None = None,
-        helper_path: Path | None = None,
-        helper_trust_checker: Callable[[Path], bool] | None = None,
+        self, *, hwmon_root: Path = Path("/sys/class/hwmon")
     ) -> None:
         self.hwmon_root = hwmon_root
-        self.runner = runner
-        self.sleeper = sleeper
-        self.pkexec_path = pkexec_path
-        self.helper_path = helper_path or Path("/usr/libexec/sentinelux-fan-helper")
-        self.helper_trust_checker = helper_trust_checker or self._helper_is_trusted
-        self.current_preset = "automatic"
         self._channels: tuple[FanChannel, ...] = ()
-        self._baseline: dict[str, FanState] = {}
         self.refresh()
 
     @property
     def channels(self) -> tuple[FanChannel, ...]:
         return self._channels
 
-    @property
-    def controllable_channels(self) -> tuple[FanChannel, ...]:
-        return tuple(channel for channel in self._channels if channel.controllable)
-
-    @property
-    def helper_ready(self) -> bool:
-        return (
-            self._pkexec() is not None
-            and self.helper_trust_checker(self.helper_path)
-        )
-
-    @property
-    def control_available(self) -> bool:
-        return bool(self.controllable_channels) and self.helper_ready
-
-    @staticmethod
-    def _helper_is_trusted(path: Path) -> bool:
-        try:
-            stat = path.stat()
-        except OSError:
-            return False
-        return path.is_file() and stat.st_uid == 0 and not (stat.st_mode & 0o022)
-
-    def _pkexec(self) -> str | None:
-        return self.pkexec_path or shutil.which("pkexec")
-
     def refresh(self) -> tuple[FanChannel, ...]:
         self._channels = discover_fans(self.hwmon_root)
-        for channel in self._channels:
-            if (
-                channel.controllable
-                and channel.identifier not in self._baseline
-                and channel.pwm_value is not None
-                and channel.enable_mode is not None
-            ):
-                self._baseline[channel.identifier] = FanState(
-                    pwm_value=channel.pwm_value,
-                    enable_mode=channel.enable_mode,
-                )
         return self._channels
-
-    def apply_preset(self, preset: str) -> None:
-        value = preset_pwm_value(preset)
-        self.refresh()
-        channels = self.controllable_channels
-        if not channels:
-            raise FanControlError(
-                "nessun canale PWM con feedback RPM e stato leggibile è disponibile"
-            )
-
-        if preset == "automatic":
-            payload = []
-            for channel in channels:
-                baseline = self._baseline[channel.identifier]
-                automatic_mode = (
-                    baseline.enable_mode if baseline.enable_mode >= 2 else 2
-                )
-                payload.append(
-                    {
-                        "pwm": str(channel.pwm_path),
-                        "enable": str(channel.enable_path),
-                        "value": baseline.pwm_value,
-                        "enable_mode": automatic_mode,
-                    }
-                )
-            self._run_helper("automatic", payload)
-            self.current_preset = preset
-            self.refresh()
-            return
-
-        assert value is not None
-        payload = [
-            {
-                "pwm": str(channel.pwm_path),
-                "enable": str(channel.enable_path),
-                "value": value,
-            }
-            for channel in channels
-        ]
-        self._run_helper("manual", payload)
-        self.current_preset = preset
-        self.sleeper(1.1)
-        updated = {channel.identifier: channel for channel in self.refresh()}
-        stalled = [
-            channel.label
-            for channel in channels
-            if updated.get(channel.identifier) is not None
-            and updated[channel.identifier].rpm == 0
-        ]
-        if stalled:
-            self.restore_original()
-            raise FanControlError(
-                "feedback RPM nullo dopo l'applicazione: " + ", ".join(stalled)
-            )
-
-    def restore_original(self) -> None:
-        if self.current_preset == "automatic":
-            return
-        self.refresh()
-        payload = []
-        for channel in self.controllable_channels:
-            baseline = self._baseline.get(channel.identifier)
-            if baseline is None:
-                continue
-            payload.append(
-                {
-                    "pwm": str(channel.pwm_path),
-                    "enable": str(channel.enable_path),
-                    "value": baseline.pwm_value,
-                    "enable_mode": baseline.enable_mode,
-                }
-            )
-        if not payload:
-            return
-        self._run_helper("restore", payload)
-        self.current_preset = "automatic"
-        self.refresh()
-
-    def _run_helper(self, operation: str, payload: Iterable[dict[str, object]]) -> None:
-        pkexec = self._pkexec()
-        if pkexec is None:
-            raise FanControlError("pkexec non è installato")
-        if not self.helper_trust_checker(self.helper_path):
-            raise FanControlError(
-                "helper ventole non installato o non sicuro; esegui "
-                "scripts/install-fan-helper.sh"
-            )
-        command = [
-            pkexec,
-            str(self.helper_path),
-            operation,
-            json.dumps(list(payload), separators=(",", ":")),
-        ]
-        try:
-            result = self.runner(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=False,
-            )
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise FanControlError(f"impossibile avviare l'helper: {exc}") from exc
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout or "").strip()
-            if not detail:
-                detail = "autorizzazione amministrativa negata o annullata"
-            raise FanControlError(detail)

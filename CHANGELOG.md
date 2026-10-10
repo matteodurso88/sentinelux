@@ -2,6 +2,23 @@
 
 All notable changes to Sentinelux will be documented in this file.
 
+The historical `0.0.1`–`0.0.5` entries below describe internal milestones; none was published as a GitHub release.
+
+## [0.1.0-alpha.1] - Unreleased (release candidate)
+
+### Safety / Release scope
+
+- Ship read-only fan telemetry: remove the experimental PWM preset UI, control code, root-owned fan helper and its installer from the distributable source.
+- Retain visible RPM, PWM and driver-mode readings when supplied by Linux, without treating them as proof of physical fan control.
+- Require local-first Dell test evidence and PR review before first public GitHub prerelease.
+
+### Changed
+
+- The main tray now shows CPU maximum temperature and an optional package-level reading.
+- Added a bounded, scrollable and live-updated GTK details window for all CPU temperature sensors.
+- Counted per-core readings independently of package sensors, with sequential display labels while preserving raw Linux hwmon identifiers in tooltips.
+- Sensor collection, thermal alert thresholds and preventive protection continue using complete temperature readings.
+
 ## [0.0.5] - Unreleased
 
 ### Documentation
