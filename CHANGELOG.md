@@ -2,6 +2,14 @@
 
 All notable changes to Sentinelux will be documented in this file.
 
+## [Next] - Unreleased
+
+### Changed
+
+- The main tray now shows CPU maximum temperature and an optional package-level reading.
+- Added a bounded, scrollable and live-updated GTK details window for all CPU temperature sensors.
+- Sensor collection, thermal alert thresholds and preventive protection continue using complete temperature readings.
+
 ## [0.0.5] - Unreleased
 
 ### Documentation
