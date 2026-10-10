@@ -1,5 +1,14 @@
 # Sentinelux — dossier pubblico e handoff per matt88.it
 
+> **ARCHIVIO STORICO — NON usare questo documento come scheda tecnica della
+> prima release.** Il dossier fotografa la fase pre-alpha del 22 luglio 2026
+> e contiene riferimenti a sperimentazioni PWM successivamente escluse dal
+> candidato `v0.1.0-alpha.1`. Per lo scope aggiornato consultare
+> [Sentinelux alpha brief](sentinelux-alpha-brief.md), i
+> [README](../../README.md) e le
+> [note della prerelease](../releases/v0.1.0-alpha.1.md).
+
+
 Data dell’analisi: **22 luglio 2026**
 
 Perimetro delle fonti: repository pubblico `matteodurso88/sentinelux`, commit remoto `8b7eec4317128ea10b010b75f991ee100be33cfa`, working tree ricostruito con le funzioni `0.0.3`–`0.0.5`, test locali, screenshot condivisi nella conversazione e decisioni esplicite del progetto. Dove una verifica non è disponibile viene usata la dicitura `DA CONFERMARE`.
