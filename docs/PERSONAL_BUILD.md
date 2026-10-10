@@ -52,6 +52,28 @@ To trigger notifications without heating the machine, temporarily start Sentinel
 
 Exit the application from its tray menu and restart it normally afterward.
 
+## Local validation (Dell)
+
+After checking out the candidate `work/compact-tray-temperature-details` branch,
+run the project tests and source compilation in the local Linux environment:
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m compileall -q src tests
+```
+
+Close any already-running Sentinelux tray instance, then launch the candidate
+for a live GTK smoke test:
+
+```bash
+./scripts/run-dev.sh --debug
+```
+
+Verify that the main tray is short even with many core sensors, that
+“Dettaglio sensori termici” opens a scrollable and updating window, and that
+thermal alerts/protection thresholds are unchanged. The owner must report
+the local command results and real desktop behavior before PR integration.
+
 ## Temperature diagnostics
 
 When no CPU temperature is detected, collect these outputs:
