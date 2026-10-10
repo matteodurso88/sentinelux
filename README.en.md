@@ -4,7 +4,7 @@
 
 Sentinelux is an open-source hardware monitor for Linux desktops. It keeps essential information in the system tray: CPU load, coherent RAM pressure, swap usage, CPU temperatures and fan telemetry when the kernel exposes it. The current goal is immediate visibility and configurable thermal alerts without turning the application into an intrusive dashboard.
 
-> **Status:** version `0.0.5`, pre-alpha, not yet published as a release or `.deb` package.
+> **Status:** `v0.1.0-alpha.1` candidate (`0.1.0a1` Python version), **not yet published**. No `.deb` package is available.
 
 ## Available features
 
@@ -20,7 +20,7 @@ Sentinelux is an open-source hardware monitor for Linux desktops. It keeps essen
 - XDG autostart controlled from the preferences window;
 - optional preventive hibernation or suspension;
 - read-only display of the lowest kernel-exported `critical` thermal trip point;
-- fan discovery through `hwmon`, with PWM control only when the channel can be verified;
+- read-only `hwmon` fan telemetry (RPM, PWM and driver mode when exposed), without manual fan control;
 - JSON snapshot export through `--once`;
 - per-user installation and removal scripts.
 
@@ -34,7 +34,6 @@ Sentinelux currently targets Debian-family Linux desktops and requires:
 - Ayatana AppIndicator or the legacy AppIndicator fallback;
 - libnotify;
 - `systemd-logind`, `busctl` and `systemctl` for preventive sleep actions;
-- `pkexec` only for optional PWM presets;
 - a desktop session with an AppIndicator-compatible tray.
 
 The available local validation was performed on an Xfce/X11 environment. The exact distribution version, Wayland and other CPU architectures have not been formally verified yet.
@@ -95,7 +94,7 @@ The **Preferences** window contains:
 - **Monitoring** — interval, warning threshold, critical threshold, hysteresis and reminders;
 - **Alerts** — master switch and individual notification types;
 - **Protection** — preventive action, threshold, persistence, hysteresis and read-only kernel trip point;
-- **Fans** — `hwmon` telemetry and PWM presets when supported;
+- **Fans** — read-only `hwmon` telemetry; manual presets are not included;
 - **Startup** — XDG autostart.
 
 Configuration is written atomically to:
@@ -115,33 +114,11 @@ Available actions:
 
 Sentinelux queries `systemd-logind` to determine whether the action is available and authorized. It does not change kernel, BIOS, firmware or hardware limits. The `critical` threshold displayed in the GUI is read from `/sys/class/thermal` and may not represent every protection implemented by the computer.
 
-## Fans and PWM presets
+## Fans: read-only telemetry
 
-Sentinelux reads channels exported through `/sys/class/hwmon`. The page remains read-only unless the system exposes all of the following:
+Sentinelux reads RPM and, where available, PWM and driver mode from `/sys/class/hwmon`. **It does not set PWM values, fan speed or firmware thermal profiles.** Readable PWM attributes do not prove firmware accepts manual fan control. On some Dell systems (`dell_ddv` and `dell_smm`), multiple `hwmon` channels may describe one physical fan.
 
-- `fanN_input` tachometer feedback;
-- a `pwmN` value;
-- a readable `pwmN_enable` mode.
-
-On compatible hardware, install the privileged helper once:
-
-```bash
-./scripts/install-fan-helper.sh
-```
-
-Session presets:
-
-- Automatic;
-- Quiet · 55%;
-- Balanced · 70%;
-- Performance · 85%;
-- Maximum · 100%.
-
-There is no zero-speed preset. Sentinelux checks RPM feedback after a manual change and attempts to restore the initial state during a normal exit. Presets are not persisted and are never applied automatically at login. Remove the helper with:
-
-```bash
-./scripts/uninstall-fan-helper.sh
-```
+Experimental fan presets are excluded from `v0.1.0-alpha.1`, including the privileged helper and its installation script. If a previous experimental build installed the helper, it can be removed separately using `./scripts/uninstall-fan-helper.sh`.
 
 ## Data, network and privileges
 
@@ -150,8 +127,6 @@ During normal monitoring, Sentinelux reads local metrics through `psutil`, `/sys
 Administrative privileges are not required for the tray, metrics, configuration or per-user installation. They are required only to:
 
 - install system dependencies;
-- install or remove the fan helper;
-- apply PWM presets through `pkexec`, when supported;
 - execute hibernation or suspension according to system policy.
 
 ## Tests
@@ -162,7 +137,7 @@ Run locally with:
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-Verified on 22 July 2026: **42 unit tests passed**. No CI/CD workflow is currently included in the repository.
+Historical baseline only: **42 tests passed on 22 July 2026** on an earlier build. The `v0.1.0-alpha.1` candidate needs a new local test and GTK smoke-test gate before publication.
 
 ## Current limitations
 
@@ -192,7 +167,7 @@ To uninstall:
 ./scripts/uninstall-user.sh
 ```
 
-The script intentionally retains `~/.config/sentinelux`. The fan helper, when installed, must be removed separately.
+The script intentionally retains `~/.config/sentinelux`. A fan helper from an earlier experimental branch can be removed separately with `./scripts/uninstall-fan-helper.sh`.
 
 ## Contributing
 
