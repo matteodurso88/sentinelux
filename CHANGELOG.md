@@ -14,6 +14,14 @@ All notable changes to Sentinelux will be documented in this file.
   physically changed speed.
 - Warn when `dell_smm` may be overridden by BIOS/firmware.
 - Add a strictly read-only fan capability diagnostic for local verification.
+- Prefer native Linux `platform_profile` profiles when advertised by the kernel;
+  expose only supported quiet/balanced/performance/cool options, not arbitrary PWM.
+- Validate firmware profile changes through readback and restore the baseline on
+  normal exit (with best-effort rollback if the firmware rejects a change).
+- Disable generic manual PWM on `dell_smm` until physical control is independently
+  verified; keep RPM telemetry and generic fallback on compatible non-Dell devices.
+- Add strict privileged helper validation for the fixed ACPI platform profile
+  endpoint and regression tests simulating Dell-supported choices.
 
 ## [0.0.5] - Unreleased
 
