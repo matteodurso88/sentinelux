@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Minimal privileged writer for validated Linux hwmon PWM attributes."""
+"""Minimal privileged writer for validated hwmon PWM and ACPI profile attributes."""
 
 from __future__ import annotations
 
@@ -14,6 +14,11 @@ from typing import Any
 HWMON_PATH_RE = re.compile(
     r"^/sys/class/hwmon/hwmon\d+/(pwm\d+|pwm\d+_enable)$"
 )
+
+
+PROFILE_PATH = Path("/sys/firmware/acpi/platform_profile")
+PROFILE_CHOICES_PATH = Path("/sys/firmware/acpi/platform_profile_choices")
+ALLOWED_PROFILES = frozenset({"cool", "quiet", "balanced", "performance"})
 
 
 class HelperError(RuntimeError):
@@ -44,14 +49,39 @@ def _integer(entry: dict[str, Any], key: str, minimum: int, maximum: int) -> int
     return value
 
 
-def _write(path: Path, value: int) -> None:
+def _write(path: Path, value: int | str) -> None:
     try:
         path.write_text(f"{value}\n", encoding="ascii")
     except OSError as exc:
         raise HelperError(f"scrittura fallita su {path}: {exc}") from exc
 
 
+def _apply_platform_profile(payload: object) -> None:
+    if (
+        not isinstance(payload, list)
+        or len(payload) != 1
+        or not isinstance(payload[0], dict)
+        or set(payload[0]) != {"profile"}
+    ):
+        raise HelperError("payload profilo termico non valido")
+    target = payload[0]["profile"]
+    if not isinstance(target, str) or target not in ALLOWED_PROFILES:
+        raise HelperError("profilo termico non autorizzato")
+    try:
+        choices = PROFILE_CHOICES_PATH.read_text(encoding="ascii").split()
+        if not PROFILE_PATH.is_file():
+            raise HelperError("interfaccia platform_profile non disponibile")
+    except OSError as exc:
+        raise HelperError(f"lettura profili termici non riuscita: {exc}") from exc
+    if target not in choices:
+        raise HelperError("profilo non supportato dal kernel")
+    _write(PROFILE_PATH, target)
+
+
 def apply_operation(operation: str, payload: object) -> None:
+    if operation == "profile":
+        _apply_platform_profile(payload)
+        return
     if operation not in {"manual", "automatic", "restore"}:
         raise HelperError("operazione non supportata")
     if not isinstance(payload, list) or not payload:
