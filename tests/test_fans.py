@@ -71,6 +71,7 @@ class FanDiscoveryTests(unittest.TestCase):
             self._tree(root)
             manager = FanManager(
                 hwmon_root=root,
+                platform_root=root,
                 runner=runner,
                 sleeper=lambda _seconds: None,
                 pkexec_path="/usr/bin/pkexec",
@@ -102,6 +103,7 @@ class FanDiscoveryTests(unittest.TestCase):
             hwmon = self._tree(root)
             manager = FanManager(
                 hwmon_root=root,
+                platform_root=root,
                 runner=ignored_runner,
                 sleeper=lambda _seconds: None,
                 pkexec_path="/usr/bin/pkexec",
@@ -136,6 +138,7 @@ class FanDiscoveryTests(unittest.TestCase):
             hwmon = self._tree(root)
             manager = FanManager(
                 hwmon_root=root,
+                platform_root=root,
                 runner=simulated_runner,
                 sleeper=lambda _seconds: None,
                 pkexec_path="/usr/bin/pkexec",
@@ -146,6 +149,111 @@ class FanDiscoveryTests(unittest.TestCase):
             self.assertEqual(manager.current_preset, "automatic")
             self.assertEqual((hwmon / "pwm1_enable").read_text().strip(), "2")
         self.assertEqual(calls, ["manual", "restore"])
+
+    def test_native_profile_takes_priority_over_generic_pwm(self) -> None:
+        calls: list[str] = []
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            self._tree(root)
+            (root / "platform_profile").write_text("balanced", encoding="ascii")
+            (root / "platform_profile_choices").write_text(
+                "cool quiet balanced performance", encoding="ascii"
+            )
+
+            def runner(command: list[str], **kwargs: object) -> FakeResult:
+                calls.append(command[2])
+                if command[2] == "profile":
+                    new_profile = json.loads(command[3])[0]["profile"]
+                    (root / "platform_profile").write_text(new_profile, encoding="ascii")
+                return FakeResult()
+
+            manager = FanManager(
+                hwmon_root=root,
+                platform_root=root,
+                runner=runner,
+                sleeper=lambda _seconds: None,
+                pkexec_path="/usr/bin/pkexec",
+                helper_trust_checker=lambda _path: True,
+            )
+            self.assertEqual(manager.control_backend, "platform")
+            self.assertEqual(
+                tuple(key for key, _label in manager.preset_options),
+                ("automatic", "quiet", "balanced", "performance", "cool"),
+            )
+            manager.apply_preset("cool")
+            self.assertEqual(manager.current_preset, "cool")
+            self.assertEqual(manager.current_platform_profile, "cool")
+            self.assertIn("politica termica", manager.last_feedback)
+            self.assertEqual((root / "hwmon0" / "pwm1").read_text().strip(), "178")
+
+            manager.restore_original()
+            self.assertEqual(manager.current_platform_profile, "balanced")
+            self.assertEqual(manager.current_preset, "automatic")
+
+        self.assertEqual(calls, ["profile", "profile"])
+
+    def test_native_profile_rejects_unsupported_preset(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            self._tree(root)
+            (root / "platform_profile").write_text("balanced", encoding="ascii")
+            (root / "platform_profile_choices").write_text(
+                "quiet balanced", encoding="ascii"
+            )
+            manager = FanManager(
+                hwmon_root=root,
+                platform_root=root,
+                pkexec_path="/usr/bin/pkexec",
+                helper_trust_checker=lambda _path: True,
+            )
+            with self.assertRaisesRegex(FanControlError, "non disponibile"):
+                manager.apply_preset("maximum")
+            self.assertEqual(manager.current_platform_profile, "balanced")
+
+    def test_native_profile_detects_firmware_override(self) -> None:
+        calls: list[str] = []
+
+        def ignored(command: list[str], **kwargs: object) -> FakeResult:
+            calls.append(command[2])
+            return FakeResult()
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            self._tree(root)
+            (root / "platform_profile").write_text("balanced", encoding="ascii")
+            (root / "platform_profile_choices").write_text(
+                "quiet balanced performance", encoding="ascii"
+            )
+            manager = FanManager(
+                hwmon_root=root,
+                platform_root=root,
+                runner=ignored,
+                sleeper=lambda _seconds: None,
+                pkexec_path="/usr/bin/pkexec",
+                helper_trust_checker=lambda _path: True,
+            )
+            with self.assertRaisesRegex(FanControlError, "non ha mantenuto"):
+                manager.apply_preset("performance")
+            self.assertEqual(manager.current_preset, "automatic")
+            self.assertEqual(manager.current_platform_profile, "balanced")
+        self.assertEqual(calls, ["profile", "profile"])
+
+    def test_dell_smm_only_is_not_generic_pwm_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            hwmon = self._tree(root)
+            (hwmon / "name").write_text("dell_smm", encoding="ascii")
+            manager = FanManager(
+                hwmon_root=root,
+                platform_root=root,
+                pkexec_path="/usr/bin/pkexec",
+                helper_trust_checker=lambda _path: True,
+            )
+            self.assertEqual(len(manager.channels), 1)
+            self.assertEqual(manager.controllable_channels, ())
+            self.assertIsNone(manager.control_backend)
+            self.assertFalse(manager.control_available)
 
     def test_read_only_fan_is_not_controllable(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
