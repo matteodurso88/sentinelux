@@ -1,10 +1,11 @@
-# Personal build status — 0.0.5
+# Personal build status — 0.0.5 (unreleased; tray fix in progress)
 
 This build is intentionally focused so it can be used immediately on the maintainer's Linux workstation while the packaging and broader hardware roadmap remain open.
 
 ## Included
 
-- compact single-level tray menu;
+- compact AppIndicator tray with hottest and available package-level CPU temperatures;
+- scrollable GTK details window with all detected CPU temperature sensors;
 - total CPU utilisation;
 - coherent RAM pressure, unavailable/total and available memory;
 - swap utilisation;
@@ -22,7 +23,7 @@ This build is intentionally focused so it can be used immediately on the maintai
 
 Sentinelux selects the most plausible CPU sensor group and keeps all useful readings from that group. On Intel systems this can include `Package id 0` and one entry per core. Other hardware may expose package-level readings such as `Tctl` or `Tdie`, or no suitable CPU temperature at all.
 
-The tray shows every selected reading. Alert and preventive-protection decisions use the hottest selected value.
+The tray shows the hottest CPU reading and, when available, a package-level reading (Package, Tctl or Tdie). The “Dettaglio sensori termici” item opens a bounded, scrollable GTK window containing every selected sensor; readings update during normal refreshes. Systems exposing only core readings keep the tray to one temperature row. Alert and preventive-protection decisions continue to use the hottest selected value, independently of what is visible in the tray.
 
 ## Not included yet
 
