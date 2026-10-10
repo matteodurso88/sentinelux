@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from typing import Sequence
 
 from .alerts import ThermalState
-from .metrics import human_bytes
+from .metrics import TemperatureReading, human_bytes
 
 
 _STATE_PRESENTATION = {
@@ -76,3 +77,27 @@ def thermal_state_presentation(state: ThermalState) -> tuple[str, str]:
     """Return the localized label and foreground colour for a thermal state."""
 
     return _STATE_PRESENTATION[state]
+
+
+def primary_cpu_sensor(
+    readings: Sequence[TemperatureReading],
+) -> TemperatureReading | None:
+    """Choose the best package-level sensor to show in the compact tray.
+
+    Core-only systems intentionally have no second summary row. The full
+    sensor collection remains available for the detail window and thermal policy.
+    """
+    def priority(reading: TemperatureReading) -> int:
+        label = " ".join(reading.label.lower().split())
+        if re.fullmatch(r"(?:cpu\s+)?package(?:\s+id)?\s*\d*", label):
+            return 0
+        if re.fullmatch(r"physical\s+id\s*\d+", label):
+            return 0
+        if label == "tctl":
+            return 1
+        if label == "tdie":
+            return 2
+        return 3
+
+    candidates = (reading for reading in readings if priority(reading) < 3)
+    return min(candidates, key=priority, default=None)
