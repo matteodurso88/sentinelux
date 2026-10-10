@@ -1,4 +1,4 @@
-# Release candidate — v0.1.0-alpha.1 (not yet published)
+# First GitHub alpha — v0.1.0-alpha.1 (published 2026-10-10)
 
 This build is intentionally focused so it can be used immediately on the maintainer's Linux workstation while the packaging and broader hardware roadmap remain open.
 
@@ -69,7 +69,7 @@ for a live GTK smoke test:
 ./scripts/run-dev.sh --debug
 ```
 
-Verify the compact tray and per-core count (14 cores excluding the package on the Dell), that “Dettaglio sensori termici” opens a scrollable and updating window, and that thermal alerts/protection thresholds are unchanged. The **Ventole** page must be read-only, with no preset selector or apply button and no Polkit request. Smoke-test installed-user launcher and normal exit. The owner must report local command results and real desktop evidence before a PR, tag or GitHub prerelease. If an older experimental fan helper is still installed system-wide, remove it separately with `./scripts/uninstall-fan-helper.sh` (this release does not install it).
+Verify the compact tray and per-core count (14 cores excluding the package on the Dell), that “Dettaglio sensori termici” opens a scrollable and updating window, and that thermal alerts/protection thresholds are unchanged. The **Ventole** page must be read-only, with no preset selector or apply button and no Polkit request. Smoke-test installed-user launcher and normal exit. The PR was merged and the first alpha published by explicit owner direction. The complete local source gate and detailed UI smoke logs are still not recorded, so no full regression PASS is claimed. If an older experimental fan helper is still installed system-wide, remove it separately with `./scripts/uninstall-fan-helper.sh` (this release does not install it).
 
 ## Temperature diagnostics
 

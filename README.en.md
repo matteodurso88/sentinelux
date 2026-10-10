@@ -4,7 +4,7 @@
 
 Sentinelux is an open-source hardware monitor for Linux desktops. It keeps essential information in the system tray: CPU load, coherent RAM pressure, swap usage, CPU temperatures and fan telemetry when the kernel exposes it. The current goal is immediate visibility and configurable thermal alerts without turning the application into an intrusive dashboard.
 
-> **Status:** `v0.1.0-alpha.1` candidate (`0.1.0a1` Python version), **not yet published**. No `.deb` package is available.
+> **Status:** [first public `v0.1.0-alpha.1` prerelease](https://github.com/matteodurso88/sentinelux/releases/tag/v0.1.0-alpha.1) (`0.1.0a1` Python version), published October 10, 2026. No `.deb` package is available.
 
 ## Available features
 

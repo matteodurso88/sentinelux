@@ -4,13 +4,13 @@ All notable changes to Sentinelux will be documented in this file.
 
 The historical `0.0.1`–`0.0.5` entries below describe internal milestones; none was published as a GitHub release.
 
-## [0.1.0-alpha.1] - Unreleased (release candidate)
+## [0.1.0-alpha.1] - 2026-10-10 (GitHub prerelease)
 
 ### Safety / Release scope
 
 - Ship read-only fan telemetry: remove the experimental PWM preset UI, control code, root-owned fan helper and its installer from the distributable source.
 - Retain visible RPM, PWM and driver-mode readings when supplied by Linux, without treating them as proof of physical fan control.
-- Require local-first Dell test evidence and PR review before first public GitHub prerelease.
+- Dell per-user installation and installed CLI version were verified. Full automated local suite output was not supplied for this alpha; the public release notes disclose the validation limitation.
 
 ### Changed
 

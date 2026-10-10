@@ -6,7 +6,7 @@
 
 **Sentinelux** è un monitor desktop open source per Linux che rende visibili dalla tray il carico CPU, la pressione RAM calcolata in modo coerente, lo swap, le temperature CPU e l’eventuale telemetria delle ventole. Include inoltre alert termici configurabili, azioni preventive opzionali e avvio automatico per utente.
 
-> **Current status / Stato attuale:** `v0.1.0-alpha.1` candidate · alpha · not yet released / candidata non ancora pubblicata
+> **Current status / Stato attuale:** **[v0.1.0-alpha.1](https://github.com/matteodurso88/sentinelux/releases/tag/v0.1.0-alpha.1)** · first public alpha prerelease · published 2026-10-10 / prima alpha pubblica rilasciata il 10/10/2026
 
 Sentinelux is created and maintained by **Matteo D'Urso** (`matteodurso88`) and is part of the public engineering work presented through **[matt88.it](https://matt88.it)**.
 
@@ -21,7 +21,7 @@ The first public alpha targets CPU/RAM/swap monitoring, compact thermal details,
 - Current public alpha brief: [docs/public/sentinelux-alpha-brief.md](docs/public/sentinelux-alpha-brief.md)
 - Historical (0.0.5) dossier: [docs/public/sentinelux-matt88-dossier.md](docs/public/sentinelux-matt88-dossier.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Alpha release candidate notes: [docs/releases/v0.1.0-alpha.1.md](docs/releases/v0.1.0-alpha.1.md)
+- Alpha release notes: [docs/releases/v0.1.0-alpha.1.md](docs/releases/v0.1.0-alpha.1.md)
 - License: [GPL-3.0-or-later](LICENSE)
 
 ## What it demonstrates / Cosa dimostra
