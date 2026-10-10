@@ -136,7 +136,7 @@ Session presets:
 - Performance · 85%;
 - Maximum · 100%.
 
-There is no zero-speed preset. Sentinelux checks RPM feedback after a manual change and attempts to restore the initial state during a normal exit. Presets are not persisted and are never applied automatically at login. Remove the helper with:
+There is no zero-speed preset. Sentinelux checks PWM and control-mode readback, then reports RPM feedback after a manual change and attempts to restore the initial state during a normal exit. Presets are not persisted and are never applied automatically at login. Remove the helper with:
 
 ```bash
 ./scripts/uninstall-fan-helper.sh
