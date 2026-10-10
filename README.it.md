@@ -134,7 +134,7 @@ Preset di sessione:
 - Prestazioni · 85%;
 - Massimo · 100%.
 
-Non esiste un preset a velocità zero. Sentinelux verifica il feedback RPM dopo una modifica manuale e tenta di ripristinare lo stato iniziale alla chiusura normale. I preset non sono persistenti e non vengono applicati all’accesso. Per rimuovere l’helper:
+Non esiste un preset a velocità zero. Sentinelux verifica il valore PWM e la modalità riletti dal kernel, poi confronta gli RPM. Un comando accettato non prova da solo che la ventilazione sia cambiata: se il valore viene ignorato, viene tentato il ripristino; se gli RPM restano invariati, l'interfaccia lo segnala esplicitamente. Alla chiusura normale Sentinelux ripristina lo stato iniziale. I preset non sono persistenti e non vengono applicati all’accesso. Per rimuovere l’helper:
 
 ```bash
 ./scripts/uninstall-fan-helper.sh
