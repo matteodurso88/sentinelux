@@ -114,54 +114,51 @@ Available actions:
 
 Sentinelux queries `systemd-logind` to determine whether the action is available and authorized. It does not change kernel, BIOS, firmware or hardware limits. The `critical` threshold displayed in the GUI is read from `/sys/class/thermal` and may not represent every protection implemented by the computer.
 
-## Fans and PWM presets
+## Fans and thermal profiles
 
-Sentinelux reads channels exported through `/sys/class/hwmon`. The page remains read-only unless the system exposes all of the following:
+**Native backend (preferred)** — when Linux exposes
+`/sys/firmware/acpi/platform_profile` and
+`/sys/firmware/acpi/platform_profile_choices`, Sentinelux offers only
+kernel-advertised profiles. On the confirmed Dell Latitude 5440 those are
+`quiet`, `balanced`, `performance`, and `cool`. “Restore original
+profile” selects the policy observed at Sentinelux startup.
 
-- `fanN_input` tachometer feedback;
-- a `pwmN` value;
-- a readable `pwmN_enable` mode.
+These are **firmware thermal/power/noise policies**, not PWM percentages and
+not a guarantee of a particular fan RPM. RPM may remain constant when the
+machine is idle. Sentinelux confirms profile readback, attempts rollback
+if the kernel does not retain the request, and restores the initial profile
+on normal shutdown. A system daemon or firmware can change it later.
 
-On compatible hardware, install the privileged helper once:
+**Generic PWM backend (fallback)** — used only where platform profiles
+are unavailable and RPM, PWM and control-mode telemetry are all present.
+The old 55/70/85/100% values represent PWM commands, *not* guaranteed RPM
+percentages. Dell SMM manual PWM is disabled until independently validated;
+read-only tachometer data remains available.
+
+**Reinstall the root-owned helper after updating** to enable its new
+strictly allowlisted `profile` operation:
 
 ```bash
 ./scripts/install-fan-helper.sh
 ```
 
-Session presets:
-
-- Automatic;
-- Quiet · 55%;
-- Balanced · 70%;
-- Performance · 85%;
-- Maximum · 100%.
-
-There is no zero-speed preset. Sentinelux checks PWM and control-mode readback, then reports RPM feedback after a manual change and attempts to restore the initial state during a normal exit. Presets are not persisted and are never applied automatically at login. Remove the helper with:
+Presets are never applied at login. To uninstall the helper:
 
 ```bash
 ./scripts/uninstall-fan-helper.sh
 ```
 
-### Read-only fan diagnostics (Dell and other laptops)
-
-RPM telemetry does not imply that firmware permits manual fan control.
-On some Dell models `dell_smm` exposes part of the fan interface while the
-BIOS may override manual PWM requests. Percentages on generic presets are
-requested PWM values, not guaranteed physical RPM percentages.
-
-Before attempting further manual control, run this **read-only** diagnostic
-from the repository root:
+### Read-only diagnostics
 
 ```bash
 PYTHONPATH=src python3 scripts/diagnose-fans.py
 ```
 
-If already installed on a Dell, `smbios-thermal-ctl --get-thermal-info`
-may reveal manufacturer-supported firmware thermal profiles. These modes
-are not equivalent to direct PWM duty-cycle presets and require a separate
-hardware capability check before integration.
+The command reads both `hwmon` fan data and available `platform_profile`
+choices without changing device settings. Dell `dell_ddv` and `dell_smm`
+may expose the same physical fan through separate sensors.
 
-
+## Data, network and privileges
 
 During normal monitoring, Sentinelux reads local metrics through `psutil`, `/sys/class/hwmon` and `/sys/class/thermal`. The runtime contains no telemetry, cloud synchronization or network calls.
 
