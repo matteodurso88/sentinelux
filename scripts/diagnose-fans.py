@@ -33,6 +33,10 @@ def main() -> None:
     print(f"Modello sistema: {dmi_name}")
     cli = shutil.which("smbios-thermal-ctl")
     print(f"Interfaccia Dell thermal profile: {cli or 'non installata'}")
+    profile = Path("/sys/firmware/acpi/platform_profile")
+    choices = Path("/sys/firmware/acpi/platform_profile_choices")
+    print(f"Profilo termico kernel: {read(profile) if profile.is_file() else 'assente'}")
+    print(f"Profili disponibili: {read(choices) if choices.is_file() else 'assenti'}")
     channels = discover_fans()
     print(f"Canali hwmon rilevati: {len(channels)}")
     for channel in channels:
